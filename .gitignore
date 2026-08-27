@@ -1,0 +1,26 @@
+# Python
+.venv/
+__pycache__/
+*.pyc
+
+# IDE / local tooling
+.idea/
+.claude/
+
+# Node
+memorychecker-app/node_modules/
+
+# Android / Capacitor build output & generated files
+memorychecker-app/android/.gradle/
+memorychecker-app/android/**/build/
+memorychecker-app/android/local.properties
+memorychecker-app/android/capacitor-cordova-android-plugins/
+memorychecker-app/android/app/src/main/assets/public/
+memorychecker-app/android/app/src/main/assets/capacitor.config.json
+memorychecker-app/android/app/src/main/assets/capacitor.plugins.json
+
+# --- Signing secrets: never commit these ---
+memorychecker-app/android/keystore.properties
+memorychecker-app/android/release.keystore
+memorychecker-app/android/*.jks
+memorychecker-app/android/*.keystore

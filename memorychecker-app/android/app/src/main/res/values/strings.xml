@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">디지몬 메모리 체커</string>
+    <string name="title_activity_main">디지몬 메모리 체커</string>
+    <string name="package_name">com.digimon.memorychecker</string>
+    <string name="custom_url_scheme">com.digimon.memorychecker</string>
+</resources>
