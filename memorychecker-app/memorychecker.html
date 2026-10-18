@@ -1,0 +1,2483 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>DigiMemory Checker</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#0a0e14">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+
+<style>
+  :root {
+    color-scheme: dark;
+    --bg: #0a0e14;
+    --surface: #141a24;
+    --surface-2: #1c2431;
+    --border: #2a3444;
+    --text: #e6ecf3;
+    --muted: #6b7684;
+    --plus: #3b82f6;
+    --plus-deep: #1d4ed8;
+    --plus-glow: rgba(59, 130, 246, 0.5);
+    --minus: #ef4444;
+    --minus-deep: #b91c1c;
+    --minus-glow: rgba(239, 68, 68, 0.5);
+    --amber: #f59e0b;
+    --amber-deep: #b45309;
+    /* Same colors as --surface / --surface-2, as RGB triplets so button fills can take
+       the button-transparency setting (--ba, 1 = opaque; only below 1 with a background photo). */
+    --surface-rgb: 20 26 36;
+    --surface-2-rgb: 28 36 49;
+    --ba: 1;
+    --font-display: "Noto Sans KR", "Apple SD Gothic Neo", "Malgun Gothic", ui-sans-serif, system-ui, sans-serif;
+    --font-ui: "Noto Sans KR", "Apple SD Gothic Neo", "Malgun Gothic", ui-sans-serif, system-ui, -apple-system, sans-serif;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body {
+    height: 100%; width: 100%; overflow: hidden;
+    background: var(--bg); color: var(--text);
+    font-family: var(--font-ui);
+    -webkit-user-select: none; user-select: none;
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+    overscroll-behavior: none;
+  }
+  button { font-family: inherit; font-size: inherit; color: inherit; background: none; border: none; cursor: pointer; }
+
+  /* ---------- Rotator ---------- */
+  .rotator {
+    position: fixed;
+    top: 0; left: 100vw;
+    width: var(--real-h, 100vh);
+    height: var(--real-w, 100vw);
+    transform-origin: 0 0;
+    transform: rotate(90deg);
+    overflow: hidden;
+    /* Safe-area insets in the layout's own directions (turned 90° clockwise: its left edge is
+       the phone's top). .root and the overlays pad with these. */
+    --sa-t: env(safe-area-inset-right, 0px);
+    --sa-r: env(safe-area-inset-bottom, 0px);
+    --sa-b: env(safe-area-inset-left, 0px);
+    --sa-l: env(safe-area-inset-top, 0px);
+    /* Background photo (SETTINGS) is set inline as background-image; cover keeps the landscape layout filled. */
+    background: var(--bg) center / cover no-repeat;
+  }
+  /* "배경 어둡게" scrim between the photo and the game screen */
+  .rotator::before {
+    content: "";
+    position: absolute; inset: 0;
+    background: rgb(0 0 0 / var(--bg-dim, 0));
+    pointer-events: none;
+  }
+
+  /* No-rotate mode (SETTINGS): one reader beside the phone, so P2's band and
+     first-turn button are upright too and the strip never flips (applyFlip). */
+  .rotator.norot .band-top { transform: none; }
+  .rotator.norot .tp-side.p2 { transform: none; }
+  .rotator.norot .band-top.active-first {
+    background: linear-gradient(to top, rgba(59,130,246,0.06), rgba(59,130,246,0.22));
+  }
+  .rotator.norot .band-top.active-second {
+    background: linear-gradient(to top, rgba(239,68,68,0.06), rgba(239,68,68,0.22));
+  }
+
+  .root {
+    position: absolute; inset: 0;
+    display: flex; flex-direction: column;
+    contain: layout style;
+    padding: max(var(--sa-t), 4px) max(var(--sa-r), 4px) max(var(--sa-b), 4px) max(var(--sa-l), 4px);
+  }
+
+  /* ---------- Bands ---------- */
+  .band {
+    flex: 0 0 auto;
+    display: grid;
+    grid-template-columns: 1fr auto 1fr; /* equal sides keep LOG on the center line */
+    align-items: center;
+    gap: 6px;
+    padding: 3px 8px;
+    z-index: 20;
+    background: transparent;
+    transition: background 0.35s ease, box-shadow 0.35s ease;
+  }
+  .band-top { transform: rotate(180deg); }
+  .band-side { display: flex; align-items: center; gap: 4px; min-width: 0; }
+  .band-side.right { justify-self: end; }
+  .util-btn.log-btn {
+    min-height: 40px;
+    padding: 6px 30px;
+    font-size: 1.1rem;
+    letter-spacing: 0.12em;
+  }
+
+  .band.active-first {
+    background: linear-gradient(to bottom, rgba(59,130,246,0.06), rgba(59,130,246,0.22));
+    box-shadow: inset 0 0 26px rgba(59,130,246,0.18);
+  }
+  .band.active-second {
+    background: linear-gradient(to bottom, rgba(239,68,68,0.06), rgba(239,68,68,0.22));
+    box-shadow: inset 0 0 26px rgba(239,68,68,0.18);
+  }
+
+  .player-chip {
+    display: inline-flex;
+    align-items: center; justify-content: center;
+    padding: 6px 12px;
+    border-radius: 10px;
+    background: rgb(var(--surface-2-rgb) / var(--ba));
+    border: 1px solid var(--border);
+    font-family: var(--font-display);
+    font-weight: 700;
+    font-size: 1.1rem;
+    letter-spacing: 0.06em;
+    color: var(--muted);
+    min-width: 52px;
+    min-height: 36px;
+    flex-shrink: 0;
+    transition: background 0.25s, color 0.25s, border-color 0.25s, box-shadow 0.25s;
+  }
+  .player-chip.first { color: #93c5fd; border-color: rgba(59,130,246,0.6); }
+  .player-chip.second { color: #fca5a5; border-color: rgba(239,68,68,0.6); }
+
+  .util-btn {
+    position: relative;
+    background: rgb(var(--surface-rgb) / var(--ba));
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 6px 12px;
+    font-size: 0.95rem;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    color: var(--text);
+    display: inline-flex; align-items: center; justify-content: center;
+    gap: 4px;
+    min-height: 36px;
+    white-space: nowrap;
+    overflow: hidden;
+    flex-shrink: 0;
+    font-family: var(--font-display);
+    transition: background 0.15s, border-color 0.15s, color 0.15s, filter 0.15s, opacity 0.15s;
+  }
+  .util-btn.holdable span { font-size: 0.95rem; }
+  .util-btn > * { position: relative; z-index: 1; }
+  .util-btn:active { background: rgb(var(--surface-2-rgb) / var(--ba)); }
+
+  /* Fill bar of the hold-to-confirm buttons (NEW GAME, ALL DELETE) */
+  .hold-fill {
+    position: absolute; inset: 0;
+    background: var(--amber);
+    opacity: 0.5;
+    transform: scaleX(0);
+    transform-origin: left center;
+    transition: transform 0.05s linear;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .util-btn.tamer:not(.active) { filter: grayscale(0.7); opacity: 0.55; }
+  .util-btn.tamer.active {
+    background: linear-gradient(135deg, var(--amber), var(--amber-deep));
+    border-color: var(--amber);
+    color: #1a1200;
+    font-weight: 700;
+    box-shadow: 0 0 16px -6px rgba(245, 158, 11, 0.5);
+    filter: none; opacity: 1;
+  }
+
+  .util-btn[data-action="reset"] { font-size: 0.68rem; letter-spacing: 0.03em; }
+
+  /* ---------- Strip (column: circles → game-row → circles) ---------- */
+  .strip {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    padding: 2px 0;
+    gap: 2px;
+    transition: transform 0.45s cubic-bezier(0.65, 0, 0.35, 1);
+    transform-origin: center center;
+    will-change: transform;
+    contain: layout style;
+  }
+  .strip.flipped { transform: rotate(180deg); }
+
+  /* ---------- Full-width circles ---------- */
+  .circles {
+    flex: 0 0 auto;
+    display: grid;
+    grid-template-columns: repeat(20, 1fr);
+    gap: 2px;
+    padding: 1px 6px;
+    height: clamp(14px, 2.2vh, 20px);
+    position: relative;
+    margin: 3px 0;
+  }
+  .circles::after {
+    content: "";
+    position: absolute;
+    left: 50%;
+    top: 0; bottom: 0;
+    width: 2px;
+    transform: translateX(-50%);
+    background: var(--border);
+    transition: background 0.3s, box-shadow 0.3s;
+    pointer-events: none;
+    z-index: 1;
+  }
+  .circles.zero-active::after {
+    background: var(--amber);
+    box-shadow: 0 0 6px rgba(245, 158, 11, 0.5);
+  }
+  .circle {
+    justify-self: center; align-self: center;
+    height: 100%; aspect-ratio: 1;
+    border-radius: 50%;
+    background: rgb(var(--surface-2-rgb) / var(--ba));
+    border: 1px solid var(--border);
+    /* no transition — instant for APK responsiveness */
+  }
+  .circle.blue { background: var(--plus); border-color: var(--plus); }
+  .circle.red { background: var(--minus); border-color: var(--minus); }
+  .circle:nth-child(10) { margin-right: 2px; }
+  .circle:nth-child(11) { margin-left: 2px; }
+
+  /* ---------- Game row ---------- */
+  .game-row {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: row;
+    gap: 5px;
+    padding: 0 3px;
+  }
+
+  /* ---------- Delta groups (connected bar) ---------- */
+  .delta-group {
+    flex: 1;
+    display: flex;
+    flex-direction: row;
+    border-radius: 14px;
+    overflow: hidden;
+    min-width: 0; min-height: 0;
+  }
+
+  .delta {
+    flex: 1;
+    min-width: 0; min-height: 0;
+    position: relative;
+    border-radius: 0;
+    font-family: var(--font-display);
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    font-size: clamp(1.2rem, 5vh, 2.3rem);
+    color: #fff;
+    display: flex; align-items: center; justify-content: center;
+    overflow: hidden;
+    isolation: isolate;
+    transition: filter 0.1s ease;
+  }
+  .delta::before {
+    content: ""; position: absolute; inset: 0;
+    background: linear-gradient(180deg, rgba(255,255,255,0.08), transparent 40%);
+    pointer-events: none;
+  }
+  .delta:active { filter: brightness(1.2); }
+  .delta + .delta { border-left: 1px solid rgba(255,255,255,0.07); }
+
+  .plus-4 { background: linear-gradient(135deg, rgb(30 64 175 / var(--ba)), rgb(30 58 138 / var(--ba))); }
+  .plus-3 { background: linear-gradient(135deg, rgb(29 78 216 / var(--ba)), rgb(30 64 175 / var(--ba))); }
+  .plus-2 { background: linear-gradient(135deg, rgb(37 99 235 / var(--ba)), rgb(29 78 216 / var(--ba))); }
+  .plus-1 { background: linear-gradient(135deg, rgb(59 130 246 / var(--ba)), rgb(37 99 235 / var(--ba))); }
+  .minus-1 { background: linear-gradient(135deg, rgb(239 68 68 / var(--ba)), rgb(220 38 38 / var(--ba))); }
+  .minus-2 { background: linear-gradient(135deg, rgb(220 38 38 / var(--ba)), rgb(185 28 28 / var(--ba))); }
+  .minus-3 { background: linear-gradient(135deg, rgb(185 28 28 / var(--ba)), rgb(153 27 27 / var(--ba))); }
+  .minus-4 { background: linear-gradient(135deg, rgb(153 27 27 / var(--ba)), rgb(127 29 29 / var(--ba))); }
+
+  /* ---------- Center cell ---------- */
+  .mem-cell {
+    flex: 0 0 22%;
+    min-width: 80px; min-height: 0;
+    display: flex; flex-direction: column;
+    gap: 4px;
+  }
+
+  .mem-btn {
+    flex: 1; min-height: 0; width: 100%;
+    position: relative;
+    border-radius: 18px;
+    background: radial-gradient(ellipse at center, rgb(var(--surface-2-rgb) / var(--ba)) 0%, rgb(var(--surface-rgb) / var(--ba)) 70%);
+    border: 2px solid var(--border);
+    display: flex; align-items: center; justify-content: center;
+    overflow: hidden;
+    touch-action: none;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    contain: layout style;
+  }
+  .mem-btn.positive {
+    border-color: rgba(59, 130, 246, 0.5);
+    box-shadow: inset 0 0 40px -18px var(--plus-glow);
+  }
+  .mem-btn.negative {
+    border-color: rgba(239, 68, 68, 0.5);
+    box-shadow: inset 0 0 40px -18px var(--minus-glow);
+  }
+
+  .mem-number {
+    font-family: var(--font-display);
+    font-weight: 700;
+    font-size: clamp(2.8rem, min(12vh, 22vw), 8rem);
+    line-height: 0.9;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.02em;
+    transition: color 0.3s ease, transform 0.2s ease;
+    z-index: 2;
+  }
+  .mem-btn.positive .mem-number { color: #93c5fd; text-shadow: 0 0 30px var(--plus-glow); }
+  .mem-btn.negative .mem-number { color: #fca5a5; text-shadow: 0 0 30px var(--minus-glow); }
+  .mem-btn.zero .mem-number { color: var(--text); }
+
+  .mem-number.pop { animation: pop 0.22s ease; }
+  @keyframes pop { 0% { transform: scale(1); } 50% { transform: scale(1.08); } 100% { transform: scale(1); } }
+
+  .turn-btn {
+    flex: 0 0 auto;
+    width: 100%;
+    min-height: 36px;
+    padding: 5px 4px;
+    border-radius: 10px;
+    background: rgb(var(--surface-2-rgb) / var(--ba));
+    border: 1px solid var(--border);
+    color: var(--amber);
+    font-family: var(--font-display);
+    font-weight: 700;
+    font-size: 1.0rem;
+    letter-spacing: 0.08em;
+    display: flex; align-items: center; justify-content: center;
+    transition: background 0.15s, transform 0.08s, border-color 0.15s;
+  }
+  .turn-btn:active { background: var(--surface); transform: scale(0.96); border-color: var(--amber); }
+
+  .undo-btn {
+    flex: 0 0 auto;
+    width: 100%;
+    min-height: 36px;
+    padding: 4px;
+    border-radius: 10px;
+    background: rgb(var(--surface-2-rgb) / var(--ba));
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-family: var(--font-display);
+    font-weight: 700;
+    font-size: 1.0rem;
+    letter-spacing: 0.08em;
+    line-height: 1;
+    display: flex; align-items: center; justify-content: center;
+    transition: background 0.15s, transform 0.08s, opacity 0.15s, filter 0.15s;
+  }
+  .undo-btn:active { background: var(--surface); transform: scale(0.96); }
+  .undo-btn:disabled { opacity: 0.25; filter: grayscale(1); }
+
+  .mem-btn.dragging { cursor: grabbing; }
+  .delta.drag-target {
+    filter: brightness(1.4);
+    box-shadow: 0 0 0 3px rgba(255,255,255,0.5) inset;
+  }
+
+  /* ---------- Turn flash ---------- */
+  .turn-flash {
+    position: absolute; inset: 0;
+    background: radial-gradient(circle at center, rgba(245, 158, 11, 0.35), transparent 60%);
+    z-index: 400; opacity: 0; pointer-events: none;
+    transition: opacity 0.15s ease;
+  }
+  .turn-flash.on { opacity: 1; }
+
+  /* ---------- Log overlay ---------- */
+  .log-overlay {
+    position: absolute; inset: 0;
+    background: rgba(10, 14, 20, 0.95);
+    /* backdrop-filter removed for APK perf */
+    display: flex; align-items: center; justify-content: center;
+    /* + safe area, so the panel never sits under a system bar or the notch */
+    padding: calc(20px + var(--sa-t)) calc(20px + var(--sa-r)) calc(20px + var(--sa-b)) calc(20px + var(--sa-l));
+    z-index: 555; /* above the turn picker (550): LOG can be opened from it */
+    opacity: 0; pointer-events: none;
+    transition: opacity 0.2s ease;
+  }
+  .log-overlay.open { opacity: 1; pointer-events: auto; }
+  /* Opened from P2's (rotated) band: the panel turns 180° to face P2 */
+  .log-overlay.p2view .log-panel, .info-overlay.p2view .info-panel { transform: rotate(180deg); }
+  /* Panel inside an overlay (LOG, HELP, SETTINGS, RECORD) */
+  .log-panel, .info-panel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    width: min(560px, 100%);
+    max-height: 100%;
+    display: flex; flex-direction: column;
+    overflow: hidden;
+  }
+  .log-panel { width: min(620px, 100%); }
+  .log-header, .info-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--border);
+  }
+  .log-title, .info-title {
+    font-family: var(--font-display);
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    font-size: 0.95rem;
+  }
+  .log-close, .info-close {
+    width: 32px; height: 32px;
+    border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    color: var(--muted);
+    font-size: 1.2rem;
+  }
+  .log-close:active, .info-close:active { background: var(--surface-2); }
+  .log-tabs {
+    display: flex;
+    flex-shrink: 0;
+    overflow-x: auto;
+    padding: 8px 12px;
+    gap: 5px;
+    border-bottom: 1px solid var(--border);
+    scrollbar-width: thin;
+  }
+  .log-tabs::-webkit-scrollbar { height: 4px; }
+  .log-tabs::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+  .log-tab {
+    position: relative;
+    overflow: hidden;
+    touch-action: pan-x;
+    padding: 5px 10px;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    font-family: var(--font-display);
+    font-size: 0.76rem;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    color: var(--muted);
+    white-space: nowrap;
+    transition: background 0.15s, color 0.15s, border-color 0.15s;
+  }
+  .log-tab.active {
+    background: var(--amber);
+    color: #1a1200;
+    border-color: var(--amber);
+  }
+  .log-tab.is-current {
+    color: #fcd34d;
+    border-color: rgba(245, 158, 11, 0.45);
+  }
+  .log-tab.is-current.active {
+    background: var(--amber);
+    color: #1a1200;
+    border-color: var(--amber);
+  }
+  .log-tab span { position: relative; z-index: 1; }
+  .log-tab .tab-fill {
+    position: absolute; inset: 0;
+    background: #fff;
+    opacity: 0.35;
+    transform: scaleX(0);
+    transform-origin: left center;
+    pointer-events: none;
+  }
+  .log-list {
+    overflow-y: auto;
+    padding: 8px;
+    /* Rows are rendered newest-first in plain column order, so the list opens scrolled
+       to the newest entry (column-reverse opened at the oldest when it overflowed). */
+    display: flex; flex-direction: column;
+    gap: 4px;
+    min-height: 80px;
+    flex: 1;
+    scrollbar-width: thin;
+  }
+  .log-empty {
+    text-align: center;
+    color: var(--muted);
+    padding: 30px 20px;
+    font-size: 0.85rem;
+  }
+  .log-row {
+    display: grid;
+    grid-template-columns: 56px 1fr auto;
+    gap: 10px; align-items: center;
+    padding: 8px 12px;
+    border-radius: 8px;
+    background: var(--surface-2);
+    font-size: 0.85rem;
+    border-left: 3px solid transparent;
+  }
+  .log-row.turn-p1 {
+    background: linear-gradient(to right, rgba(59,130,246,0.10), var(--surface-2) 60%);
+    border-left-color: rgba(59,130,246,0.45);
+  }
+  .log-row.turn-p2 {
+    background: linear-gradient(to right, rgba(239,68,68,0.10), var(--surface-2) 60%);
+    border-left-color: rgba(239,68,68,0.45);
+  }
+  .log-time {
+    font-family: var(--font-display);
+    font-variant-numeric: tabular-nums;
+    color: var(--muted);
+    font-size: 0.72rem;
+    letter-spacing: 0.02em;
+  }
+  .log-action { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .log-action .tag {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 5px;
+    font-family: var(--font-display);
+    font-size: 0.78rem;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    font-variant-numeric: tabular-nums;
+  }
+  .log-action .tag.plus { background: rgba(59, 130, 246, 0.22); color: #93c5fd; }
+  .log-action .tag.minus { background: rgba(239, 68, 68, 0.22); color: #fca5a5; }
+  .log-action .tag.zero { background: rgba(107, 118, 132, 0.25); color: var(--muted); }
+  .log-action .tag.turn { background: rgba(245, 158, 11, 0.22); color: #fcd34d; }
+  .log-action .tag.reset { background: rgba(107, 118, 132, 0.25); color: var(--muted); }
+  .log-action .tag.tamer { background: rgba(245, 158, 11, 0.15); color: #fcd34d; }
+  .log-action .tag.start { background: rgba(59, 130, 246, 0.15); color: #93c5fd; }
+  .log-action .tag.load { background: rgba(245, 158, 11, 0.15); color: #fcd34d; }
+  .log-presses {
+    font-family: var(--font-display);
+    font-size: 0.7rem;
+    color: var(--muted);
+    letter-spacing: 0.03em;
+  }
+  .log-value {
+    font-family: var(--font-display);
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    color: var(--text);
+    font-size: 0.9rem;
+  }
+  .log-value.pos { color: #93c5fd; }
+  .log-value.neg { color: #fca5a5; }
+
+  /* ---------- Turn picker overlay ---------- */
+  .turn-picker {
+    position: absolute; inset: 0;
+    background: rgba(10, 14, 20, 0.97);
+    /* backdrop-filter removed for APK perf */
+    display: flex; flex-direction: column;
+    z-index: 550;
+    opacity: 0; pointer-events: none;
+    transition: opacity 0.25s ease;
+    /* + safe area: the P1/P2 buttons stretch edge to edge */
+    padding: calc(16px + var(--sa-t)) calc(16px + var(--sa-r)) calc(16px + var(--sa-b)) calc(16px + var(--sa-l));
+    gap: 10px;
+  }
+  .turn-picker.open { opacity: 1; pointer-events: auto; }
+  .tp-side { flex: 1; display: flex; align-items: stretch; justify-content: stretch; }
+  .tp-side.p2 { transform: rotate(180deg); }
+  .tp-btn {
+    flex: 1;
+    background: linear-gradient(135deg, var(--surface), var(--surface-2));
+    border: 2px solid var(--border);
+    border-radius: 18px;
+    color: var(--text);
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    gap: 6px;
+    font-family: var(--font-display);
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    transition: transform 0.08s ease, border-color 0.2s, box-shadow 0.2s;
+  }
+  .tp-btn:active {
+    transform: scale(0.98);
+    border-color: var(--amber);
+    box-shadow: 0 0 30px -8px rgba(245,158,11,0.5);
+  }
+  .tp-btn .tp-label {
+    font-size: clamp(1.4rem, 5vh, 2.4rem);
+    color: var(--amber);
+    letter-spacing: 0.08em;
+  }
+  .tp-btn .tp-text {
+    font-size: clamp(0.85rem, 2vh, 1.1rem);
+    color: var(--muted);
+    letter-spacing: 0.06em;
+    font-weight: 500;
+  }
+  .tp-divider {
+    flex: 0 0 auto;
+    text-align: center;
+    color: var(--muted);
+    font-size: 0.78rem;
+    letter-spacing: 0.06em;
+    padding: 4px 0;
+    font-family: var(--font-display);
+    display: flex; align-items: center; justify-content: center;
+    position: relative;
+  }
+  /* Pinned to the row's right end (= bottom of the portrait phone) so "— FIRST TURN —" stays centered. */
+  .tp-tools {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    display: flex; gap: 6px;
+  }
+  .tp-tools.right { right: 0; }
+  .tp-log {
+    display: inline-flex; align-items: center; justify-content: center;
+    padding: 4px 12px;
+    min-height: 30px;
+    border-radius: 8px;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-family: var(--font-display);
+    font-size: 0.78rem;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+  }
+  .tp-log:active { background: var(--surface); }
+
+  /* ---------- Help overlay ---------- */
+  .info-overlay {
+    position: absolute; inset: 0;
+    background: rgba(10, 14, 20, 0.96);
+    /* backdrop-filter removed for APK perf */
+    display: flex; align-items: center; justify-content: center;
+    padding: calc(20px + var(--sa-t)) calc(20px + var(--sa-r)) calc(20px + var(--sa-b)) calc(20px + var(--sa-l));
+    z-index: 560;
+    opacity: 0; pointer-events: none;
+    transition: opacity 0.2s ease;
+  }
+  .info-overlay.open { opacity: 1; pointer-events: auto; }
+  .info-body {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    padding: 14px 18px 18px;
+    scrollbar-width: thin;
+  }
+  .info-body::-webkit-scrollbar { width: 6px; }
+  .info-body::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+  .help-tabs {
+    display: flex;
+    flex-shrink: 0;
+    gap: 4px;
+    padding: 8px 12px;
+    border-bottom: 1px solid var(--border);
+  }
+  .help-tab {
+    flex: 1;
+    padding: 6px 4px;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    font-family: var(--font-display);
+    font-size: 0.72rem;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    color: var(--muted);
+    text-align: center;
+    transition: background 0.15s, color 0.15s, border-color 0.15s;
+  }
+  .help-tab.active {
+    background: var(--amber);
+    color: #1a1200;
+    border-color: var(--amber);
+  }
+  .help-pane { display: none; }
+  .help-pane.active { display: block; }
+  .help-ko { margin-bottom: 14px; }
+  .help-ko ul, .help-en ul {
+    list-style: none;
+    padding-left: 22px;
+    font-size: 0.85rem;
+    line-height: 1.7;
+  }
+  .help-ko ul { color: var(--text); }
+  .help-en ul { color: var(--muted); font-size: 0.8rem; }
+  .help-ko ul li, .help-en ul li { position: relative; }
+  .help-ko ul li::before, .help-en ul li::before {
+    content: "";
+    position: absolute;
+    left: -14px; top: 0.7em;
+    width: 4px; height: 4px;
+    border-radius: 50%;
+    background: var(--muted);
+  }
+  .help-en ul li::before { background: var(--border); }
+  .help-ko b, .help-en b { color: var(--amber); font-weight: 600; }
+  .help-en b { color: rgba(245, 158, 11, 0.7); }
+
+  .log-footer {
+    padding: 8px 12px;
+    border-top: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: flex-end;
+    gap: 10px;
+  }
+  .log-hint {
+    flex: 1; min-width: 0;
+    font-size: 0.72rem;
+    color: var(--muted);
+    word-break: keep-all;
+  }
+  .info-footer {
+    padding: 8px 16px;
+    border-top: 1px solid var(--border);
+    font-size: 0.7rem;
+    color: var(--muted);
+    letter-spacing: 0.03em;
+    font-variant-numeric: tabular-nums;
+    text-align: right;
+  }
+  /* Small panel buttons: ALL DELETE, TXT EXPORT, RECORD's NEW GAME */
+  .log-delete-btn, .log-export-btn, .rec-new {
+    position: relative;
+    overflow: hidden;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 6px 14px;
+    font-family: var(--font-display);
+    font-size: 0.72rem;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    color: var(--text);
+    white-space: nowrap;
+  }
+  .log-delete-btn > *, .rec-new > * { position: relative; z-index: 1; }
+  .log-delete-btn { color: #fca5a5; }
+  .log-delete-btn .hold-fill { background: #ef4444; opacity: 0.45; }
+  .log-export-btn:active { background: var(--surface); }
+
+  .icon-gear { width: 1.15em; height: 1.15em; display: block; }
+
+  /* ---------- Settings ---------- */
+  .set-row {
+    display: flex; align-items: center;
+    gap: 10px;
+    padding: 9px 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .set-row:last-child { border-bottom: 0; }
+  .set-label { flex: 1; min-width: 0; font-size: 0.85rem; font-weight: 600; }
+  .set-label small {
+    display: block;
+    margin-top: 2px;
+    font-size: 0.72rem; font-weight: 400;
+    color: var(--muted);
+    word-break: keep-all;
+  }
+  .seg { display: flex; gap: 4px; flex-shrink: 0; }
+  .seg button, .set-btn {
+    min-height: 32px;
+    padding: 4px 10px;
+    border-radius: 8px;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    font-family: var(--font-display);
+    font-size: 0.76rem;
+    font-weight: 600;
+    letter-spacing: 0.03em;
+    color: var(--muted);
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+  .set-btn { color: var(--text); }
+  .seg button.on { background: var(--amber); border-color: var(--amber); color: #1a1200; }
+  .seg button:disabled, .set-btn:disabled { opacity: 0.35; }
+  .bg-thumb {
+    width: 58px; height: 33px;
+    flex-shrink: 0;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    background: var(--surface-2) center / cover no-repeat;
+  }
+
+  /* ---------- Record (personal match memo) ---------- */
+  /* Not rotated: RECORD sits outside .rotator and reads like a normal portrait phone screen,
+     with the keyboard below it. Rows: my deck ▾ / opponent / date / WIN DRAW LOSS. */
+  .info-overlay.rec-overlay {
+    position: fixed;
+    z-index: 700;
+    padding: calc(10px + env(safe-area-inset-top, 0px)) calc(10px + env(safe-area-inset-right, 0px))
+             calc(10px + env(safe-area-inset-bottom, 0px)) calc(10px + env(safe-area-inset-left, 0px));
+  }
+  .rec-overlay .info-panel { position: relative; width: min(520px, 100%); height: 100%; max-height: 760px; }
+  .hdr-tools { display: flex; align-items: center; gap: 8px; }
+  .rec-form {
+    display: flex; flex-direction: column;
+    gap: 8px;
+    padding: 12px;
+    border-bottom: 1px solid var(--border);
+  }
+  .rec-line { display: flex; align-items: center; gap: 8px; }
+  .rec-tag {
+    flex: 0 0 5em;
+    font-size: 0.78rem; font-weight: 600;
+    letter-spacing: 0.02em;
+    color: var(--muted);
+    white-space: nowrap;
+  }
+  .rec-input {
+    height: 42px;
+    padding: 0 12px;
+    border-radius: 8px;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-family: var(--font-ui);
+    font-size: 1rem;
+    -webkit-user-select: text; user-select: text;
+    color-scheme: dark;
+  }
+  .rec-input:focus { outline: none; border-color: var(--amber); }
+  .rec-date, .rec-opp { flex: 1; min-width: 0; }
+  .rec-deck-wrap { flex: 1; min-width: 0; position: relative; display: flex; }
+  .rec-deck-wrap .rec-deck { flex: 1; min-width: 0; border-radius: 8px 0 0 8px; }
+  .rec-drop {
+    flex: 0 0 44px; height: 42px;
+    display: flex; align-items: center; justify-content: center;
+    border-radius: 0 8px 8px 0;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-left: 0;
+    color: var(--muted);
+  }
+  .rec-drop svg { width: 18px; height: 18px; transition: transform 0.15s; }
+  .rec-drop[aria-expanded="true"] { color: var(--amber); }
+  .rec-drop[aria-expanded="true"] svg { transform: rotate(180deg); }
+  /* Recent my-deck names (up to 5), opened by the ▾ button */
+  .rec-menu {
+    position: absolute;
+    left: 0; right: 0; top: calc(100% + 4px);
+    z-index: 5;
+    display: flex; flex-direction: column;
+    gap: 2px;
+    padding: 4px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    box-shadow: 0 10px 24px rgb(0 0 0 / 0.45);
+  }
+  .rec-menu[hidden] { display: none; }
+  .rec-menu button {
+    padding: 10px 12px;
+    border-radius: 6px;
+    text-align: left;
+    font-size: 0.95rem;
+    color: var(--text);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .rec-menu button:active { background: var(--surface-2); }
+  .rec-menu button.on { color: #fcd34d; }
+  .rec-menu-empty { padding: 10px 12px; font-size: 0.8rem; color: var(--muted); }
+  .rec-res-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+  .rec-res {
+    height: 48px;
+    border-radius: 10px;
+    border: 1px solid var(--border);
+    font-family: var(--font-display);
+    font-size: 1.05rem; font-weight: 700;
+    letter-spacing: 0.04em;
+  }
+  .rec-res:active { filter: brightness(1.3); }
+  .rec-res.W { background: rgba(59,130,246,0.22); border-color: rgba(59,130,246,0.55); color: #93c5fd; }
+  .rec-res.D { background: rgba(107,118,132,0.25); color: var(--text); }
+  .rec-res.L { background: rgba(239,68,68,0.22); border-color: rgba(239,68,68,0.55); color: #fca5a5; }
+  .rec-list {
+    flex: 1;
+    min-height: 60px;
+    overflow-y: auto;
+    padding: 8px;
+    display: flex; flex-direction: column;
+    gap: 4px;
+    scrollbar-width: thin;
+  }
+  .rec-row {
+    display: grid;
+    grid-template-columns: 6.2em 1fr auto auto;
+    gap: 8px; align-items: center;
+    padding: 6px 6px 6px 12px;
+    border-radius: 8px;
+    background: var(--surface-2);
+    font-size: 0.85rem;
+  }
+  .rec-row .r-date { color: var(--muted); font-size: 0.74rem; font-variant-numeric: tabular-nums; }
+  .rec-row .r-deck { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .rec-row .r-deck i { font-style: normal; font-size: 0.72rem; color: var(--muted); margin: 0 5px; }
+  .rec-row .r-res { padding: 2px 9px; border-radius: 5px; font-family: var(--font-display); font-weight: 700; font-size: 0.78rem; }
+  .rec-row .r-res.W { background: rgba(59,130,246,0.22); color: #93c5fd; }
+  .rec-row .r-res.D { background: rgba(107,118,132,0.25); color: var(--text); }
+  .rec-row .r-res.L { background: rgba(239,68,68,0.22); color: #fca5a5; }
+  .rec-row .r-del {
+    min-width: 30px; height: 28px;
+    padding: 0 6px;
+    border-radius: 6px;
+    color: var(--muted);
+    font-size: 0.8rem;
+  }
+  .rec-row .r-del.armed { background: rgba(239,68,68,0.22); color: #fca5a5; font-size: 0.72rem; font-weight: 700; }
+
+  /* ---------- Toast ---------- */
+  .toast {
+    position: absolute;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%) scale(0.9);
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 10px 18px;
+    font-size: 0.85rem;
+    color: var(--text);
+    z-index: 600;
+    opacity: 0; pointer-events: none;
+    transition: opacity 0.15s, transform 0.15s;
+    text-align: center;
+    max-width: 80vw;
+  }
+  .toast.show { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+
+  /* Browser only: a landscape window (desktop, or a phone browser turned sideways) shows the
+     landscape layout as it is instead of rotating it. The APK is portrait-locked and always rotates
+     (its keyboard can make the WebView wider than tall, so this rule must not go into the APK). */
+  @media (orientation: landscape) {
+    .rotator {
+      left: 0; transform: none;
+      width: var(--real-w, 100vw); height: var(--real-h, 100vh);
+      /* not turned, so the safe-area insets keep their own directions */
+      --sa-t: env(safe-area-inset-top, 0px);
+      --sa-r: env(safe-area-inset-right, 0px);
+      --sa-b: env(safe-area-inset-bottom, 0px);
+      --sa-l: env(safe-area-inset-left, 0px);
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { transition: none !important; animation: none !important; }
+  }
+</style>
+
+<!-- Icon used by the SETTINGS buttons -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><symbol id="i-gear" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.6 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></symbol></svg>
+
+<div class="rotator">
+<div class="root">
+  <!-- P2 band (top, rotated 180° for P2's readability) -->
+  <div class="band band-top">
+    <div class="band-side left">
+      <span class="player-chip" data-player="2">P2</span>
+      <button class="util-btn tamer" data-player="2" aria-pressed="false">MEMORY TAMER</button>
+    </div>
+    <button class="util-btn log-btn" data-action="log">LOG</button>
+    <div class="band-side right">
+      <button class="util-btn" data-action="record">RECORD</button>
+      <button class="util-btn holdable" data-action="reset" aria-label="NEW GAME">
+        <div class="hold-fill"></div>
+        <span>NEW GAME</span>
+      </button>
+      <button class="util-btn" data-action="help" aria-label="도움말">?</button>
+      <button class="util-btn" data-action="settings" aria-label="설정"><svg class="icon-gear" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-gear"/></svg></button>
+    </div>
+  </div>
+
+  <!-- Circles (outside strip — never rotate, top mirrored for P2) -->
+  <div class="circles" data-side="top"></div>
+
+  <!-- Game strip (flips on turn change) -->
+  <div class="strip" id="strip">
+    <div class="game-row">
+      <div class="delta-group">
+        <button class="delta plus-4" data-delta="4">+4</button>
+        <button class="delta plus-3" data-delta="3">+3</button>
+        <button class="delta plus-2" data-delta="2">+2</button>
+        <button class="delta plus-1" data-delta="1">+1</button>
+      </div>
+      <div class="mem-cell">
+        <button class="turn-btn" id="turnBtn">END TURN</button>
+        <button class="mem-btn zero" id="memBtn" aria-label="메모리">
+          <div class="mem-number" id="memNumber">0</div>
+        </button>
+        <button class="undo-btn" id="undoBtn" aria-label="UNDO" disabled>UNDO</button>
+      </div>
+      <div class="delta-group">
+        <button class="delta minus-1" data-delta="-1">−1</button>
+        <button class="delta minus-2" data-delta="-2">−2</button>
+        <button class="delta minus-3" data-delta="-3">−3</button>
+        <button class="delta minus-4" data-delta="-4">−4</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="circles" data-side="bottom"></div>
+
+  <!-- P1 band (bottom) -->
+  <div class="band band-bottom">
+    <div class="band-side left">
+      <span class="player-chip" data-player="1">P1</span>
+      <button class="util-btn tamer" data-player="1" aria-pressed="false">MEMORY TAMER</button>
+    </div>
+    <button class="util-btn log-btn" data-action="log">LOG</button>
+    <div class="band-side right">
+      <button class="util-btn" data-action="record">RECORD</button>
+      <button class="util-btn holdable" data-action="reset" aria-label="NEW GAME">
+        <div class="hold-fill"></div>
+        <span>NEW GAME</span>
+      </button>
+      <button class="util-btn" data-action="help" aria-label="도움말">?</button>
+      <button class="util-btn" data-action="settings" aria-label="설정"><svg class="icon-gear" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-gear"/></svg></button>
+    </div>
+  </div>
+</div>
+
+<div class="turn-flash" id="turnFlash"></div>
+
+<div class="log-overlay" id="logOverlay" role="dialog" aria-modal="true" aria-labelledby="logTitle">
+  <div class="log-panel">
+    <div class="log-header">
+      <div class="log-title" id="logTitle">GAME LOG</div>
+      <button class="log-close" id="logClose" aria-label="닫기">✕</button>
+    </div>
+    <div class="log-tabs" id="logTabs"></div>
+    <div class="log-list" id="logList">
+      <div class="log-empty">아직 기록이 없습니다.</div>
+    </div>
+    <div class="log-footer">
+      <span class="log-hint">로그 이름을 1초 누르면 그 게임의 마지막 상황을 불러와요</span>
+      <button class="log-export-btn" id="logExport" aria-label="모든 로그를 텍스트 파일로 저장">TXT EXPORT</button>
+      <button class="log-delete-btn holdable" id="logDeleteAll">
+        <div class="hold-fill"></div>
+        <span>ALL DELETE</span>
+      </button>
+    </div>
+  </div>
+</div>
+
+<div class="turn-picker" id="turnPicker" role="dialog" aria-modal="true" aria-labelledby="tpTitle">
+  <div class="tp-side p2">
+    <button class="tp-btn" data-player="2">
+      <div class="tp-label">P2</div>
+      <div class="tp-text">GO FIRST</div>
+    </button>
+  </div>
+  <div class="tp-divider">
+    <span id="tpTitle">— FIRST TURN —</span>
+    <div class="tp-tools right">
+      <button class="tp-log" id="tpLog">LOG</button>
+      <button class="tp-log" id="tpRecord">RECORD</button>
+      <button class="tp-log" id="tpSettings" aria-label="설정"><svg class="icon-gear" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-gear"/></svg></button>
+    </div>
+  </div>
+  <div class="tp-side p1">
+    <button class="tp-btn" data-player="1">
+      <div class="tp-label">P1</div>
+      <div class="tp-text">GO FIRST</div>
+    </button>
+  </div>
+</div>
+
+<div class="info-overlay" id="helpOverlay" role="dialog" aria-modal="true" aria-labelledby="helpTitle">
+  <div class="info-panel">
+    <div class="info-header">
+      <div class="info-title" id="helpTitle">HELP</div>
+      <button class="info-close" id="helpClose" aria-label="닫기">✕</button>
+    </div>
+    <div class="help-tabs" id="helpTabs">
+      <button class="help-tab active" data-help="memory">MEMORY</button>
+      <button class="help-tab" data-help="turn">TURN</button>
+      <button class="help-tab" data-help="undo">UNDO</button>
+      <button class="help-tab" data-help="log">LOG</button>
+      <button class="help-tab" data-help="record">RECORD</button>
+      <button class="help-tab" data-help="settings">SETTING</button>
+    </div>
+    <div class="info-body">
+      <div class="help-pane active" data-help="memory">
+        <div class="help-ko">
+          <ul>
+            <li>± 버튼 <b>탭</b>으로 1~4씩 조정</li>
+            <li>중앙 버튼을 누른 채 ± 버튼까지 <b>드래그</b>로도 가능</li>
+          </ul>
+        </div>
+        <div class="help-en">
+          <ul>
+            <li>Tap <b>± buttons</b> to adjust memory by 1–4</li>
+            <li>Or <b>drag</b> from the center button to a ± button</li>
+          </ul>
+        </div>
+      </div>
+      <div class="help-pane" data-help="turn">
+        <div class="help-ko">
+          <ul>
+            <li><b>END TURN</b> 버튼을 탭하여 턴 넘기기</li>
+            <li>0 이상이면 상대는 <b>+3</b>으로 시작</li>
+            <li>음수면 상대는 <b>절대값</b>으로 시작</li>
+            <li><b>MEMORY TAMER</b> 활성화 시 <b>−1·−2</b>도 <b>+3</b>으로 받음</li>
+          </ul>
+        </div>
+        <div class="help-en">
+          <ul>
+            <li>Tap <b>END TURN</b> to pass the turn</li>
+            <li>If memory ≥ 0, opponent starts at <b>+3</b></li>
+            <li>If negative, opponent starts at <b>absolute value</b></li>
+            <li>With <b>MEMORY TAMER</b> active, <b>−1/−2</b> also becomes <b>+3</b></li>
+          </ul>
+        </div>
+      </div>
+      <div class="help-pane" data-help="undo">
+        <div class="help-ko">
+          <ul>
+            <li>END TURN 아래 <b>UNDO</b> 버튼으로 마지막 조작 되돌리기</li>
+            <li>양쪽 <b>NEW GAME</b> 버튼 <b>1초 꾹 누르기</b>로 초기화</li>
+            <li>초기화 시 MEMORY TAMER도 함께 초기화</li>
+          </ul>
+        </div>
+        <div class="help-en">
+          <ul>
+            <li>Tap <b>UNDO</b> below END TURN to revert the last action</li>
+            <li>Hold <b>NEW GAME</b> for <b>1 second</b> to reset</li>
+            <li>Reset also clears MEMORY TAMER</li>
+          </ul>
+        </div>
+      </div>
+      <div class="help-pane" data-help="log">
+        <div class="help-ko">
+          <ul>
+            <li>선턴 결정 시점의 <b>날짜시간</b>으로 로그 이름 자동 생성</li>
+            <li>초기화 시 현재 로그 자동 저장 (최근 <b>10개</b>)</li>
+            <li>탭에서 이전 게임 로그 확인 가능 · P2 쪽 LOG / ? 는 P2 방향으로 열려요</li>
+            <li>지난 로그 이름을 <b>1초 꾹 누르기</b>로 그 게임의 마지막 상황(메모리·턴·MEMORY TAMER)을 불러와 이어하기</li>
+            <li>불러오면 진행 중이던 게임은 로그에 보관되고, UNDO로 불러온 게임의 기록도 되돌릴 수 있음</li>
+            <li>앱을 다시 열면 진행 중이던 게임은 로그에 보관됨 → 선턴 화면의 <b>LOG</b>에서 불러와 이어하기</li>
+            <li><b>TXT EXPORT</b>로 모든 로그(보관 + 진행 중)를 텍스트 파일로 저장</li>
+            <li><b>ALL DELETE</b> 1초 누르기로 모든 로그 삭제 (RECORD의 전적은 그대로)</li>
+          </ul>
+        </div>
+        <div class="help-en">
+          <ul>
+            <li>Log name is auto-generated from <b>date/time</b> at first-turn selection</li>
+            <li>Current log is auto-saved on reset (up to <b>10</b> archives)</li>
+            <li>View past game logs via tabs</li>
+            <li><b>Hold</b> a past log's name for 1 second to load that game's last state and continue</li>
+            <li>Loading archives the game in progress; UNDO also works on the loaded game's history</li>
+            <li>Reopening the app archives the game in progress — load it from <b>LOG</b> on the first-turn screen</li>
+            <li><b>TXT EXPORT</b> saves every log (archived + current) as a text file</li>
+            <li>Hold <b>ALL DELETE</b> for 1 second to clear all logs (RECORD entries are kept)</li>
+          </ul>
+        </div>
+      </div>
+      <div class="help-pane" data-help="record">
+        <div class="help-ko">
+          <ul>
+            <li><b>RECORD</b>: 날짜·내 덱·상대 덱·승/무/패를 적어 두는 개인 전적 메모 (로그와 별개)</li>
+            <li>덱 이름을 적고 <b>승 / 무 / 패</b>를 누르면 바로 기록. 내 덱은 그대로 남고 상대 덱은 비워져요</li>
+            <li>내 덱 옆 <b>▾</b>: 최근 내 덱 이름 5개에서 골라 쓰기 (이름을 바꿔도 예전 이름이 남아요)</li>
+            <li>지금 적힌 내 덱의 전적은 아래에 따로 집계</li>
+            <li>RECORD는 세로 화면으로 열려요 (폰을 세로로 들고 키보드로 입력)</li>
+            <li>✕ 옆 <b>NEW GAME</b> 1초 누르기로 새 게임 시작 · ✕를 두 번 누르면 그 기록 삭제</li>
+            <li><b>TXT EXPORT</b>로 전적을 텍스트 파일로 저장</li>
+            <li>선턴 화면에서도 <b>RECORD</b>를 열 수 있어요</li>
+          </ul>
+        </div>
+        <div class="help-en">
+          <ul>
+            <li><b>RECORD</b>: a personal match memo of date, your deck, the opponent's deck and win/draw/loss (separate from logs)</li>
+            <li>Tap <b>승 / 무 / 패</b> (win / draw / loss) to add it; your deck stays, the opponent's deck is cleared</li>
+            <li><b>▾</b> next to your deck: pick from your last 5 deck names</li>
+            <li>RECORD opens upright (portrait) for typing · hold <b>NEW GAME</b> next to ✕ to start a new game</li>
+            <li>Tap ✕ twice to delete an entry · <b>TXT EXPORT</b> saves the record as a text file</li>
+          </ul>
+        </div>
+      </div>
+      <div class="help-pane" data-help="settings">
+        <div class="help-ko">
+          <ul>
+            <li><b>무회전 모드</b>: END TURN 때 화면이 돌아가지 않고, 위쪽 P2 줄도 똑바로 보여요 (폰을 옆에 두고 쓸 때)</li>
+            <li><b>배경 사진</b>: 폰에 있는 사진을 골라 배경으로 (앱 안에만 저장)</li>
+            <li><b>배경 어둡게</b>, <b>버튼 투명도</b>: 배경 사진이 있을 때 보기 좋게 조절</li>
+            <li><b>언어</b> KOR / ENG: SETTINGS와 RECORD 화면의 언어</li>
+          </ul>
+        </div>
+        <div class="help-en">
+          <ul>
+            <li><b>No-rotate mode</b>: the screen no longer turns on END TURN, and P2's row is upright too</li>
+            <li><b>Background photo</b>: pick a photo from your phone (kept inside the app only)</li>
+            <li><b>Dim background</b> and <b>button transparency</b> apply when a photo is set</li>
+            <li><b>Language</b> KOR / ENG for the SETTINGS and RECORD screens</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+    <div class="info-footer" id="appInfo"></div>
+  </div>
+</div>
+
+<div class="info-overlay" id="setOverlay" role="dialog" aria-modal="true" aria-labelledby="setTitle">
+  <div class="info-panel">
+    <div class="info-header">
+      <div class="info-title" id="setTitle">SETTINGS</div>
+      <button class="info-close" id="setClose" data-i18n-aria="close" aria-label="닫기">✕</button>
+    </div>
+    <div class="info-body">
+      <div class="set-row">
+        <div class="set-label"><span data-i18n="set.lang">언어</span></div>
+        <div class="seg" data-set="lang"><button data-v="ko">KOR</button><button data-v="en">ENG</button></div>
+      </div>
+      <div class="set-row">
+        <div class="set-label"><span data-i18n="set.noRotate">무회전 모드</span><small data-i18n="set.noRotate.d">END TURN 때 화면이 돌아가지 않아요. 폰을 한쪽에 두고 볼 때</small></div>
+        <div class="seg" data-set="noRotate"><button data-v="0">OFF</button><button data-v="1">ON</button></div>
+      </div>
+      <div class="set-row">
+        <div class="bg-thumb" id="bgThumb"></div>
+        <div class="set-label"><span data-i18n="set.bg">배경 사진</span><small data-i18n="set.bg.d">폰에 있는 사진을 배경으로 써요</small></div>
+        <button class="set-btn" id="bgPick" data-i18n="set.bgPick">사진 고르기</button>
+        <button class="set-btn" id="bgClear" data-i18n="set.bgClear">지우기</button>
+        <input type="file" id="bgFile" accept="image/*" hidden>
+      </div>
+      <div class="set-row">
+        <div class="set-label"><span data-i18n="set.bgDim">배경 어둡게</span><small data-i18n="set.bgDim.d">숫자와 글자가 잘 보이게</small></div>
+        <div class="seg" data-set="bgDim"><button data-v="0">0%</button><button data-v="25">25%</button><button data-v="50">50%</button><button data-v="75">75%</button></div>
+      </div>
+      <div class="set-row">
+        <div class="set-label"><span data-i18n="set.btnClear">버튼 투명도</span><small data-i18n="set.btnClear.d">배경 사진이 있을 때만</small></div>
+        <div class="seg" data-set="btnClear"><button data-v="0">0%</button><button data-v="25">25%</button><button data-v="50">50%</button><button data-v="75">75%</button></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+</div><!-- /.rotator -->
+
+<!-- RECORD: outside .rotator, so it is drawn upright (portrait) -->
+<div class="info-overlay rec-overlay" id="recOverlay" role="dialog" aria-modal="true" aria-labelledby="recTitle">
+  <div class="info-panel">
+    <div class="info-header">
+      <div class="info-title" id="recTitle" data-i18n="rec.title">RECORD · 전적 메모</div>
+      <div class="hdr-tools">
+        <button class="rec-new" id="recNewGame" data-i18n-aria="rec.newGame" aria-label="NEW GAME 1초 누르기: 새 게임 시작"><div class="hold-fill"></div><span>NEW GAME</span></button>
+        <button class="info-close" id="recClose" data-i18n-aria="close" aria-label="닫기">✕</button>
+      </div>
+    </div>
+    <div class="rec-form">
+      <div class="rec-line">
+        <span class="rec-tag" data-i18n="rec.mine">내 덱</span>
+        <div class="rec-deck-wrap">
+          <input class="rec-input rec-deck" id="recDeck" type="text" maxlength="40" placeholder="내 덱 이름" data-i18n-ph="rec.minePh" data-i18n-aria="rec.minePh" aria-label="내 덱 이름" autocomplete="off" enterkeyhint="done">
+          <button class="rec-drop" id="recDeckMenu" data-i18n-aria="rec.recent" aria-label="최근 덱" aria-expanded="false" aria-controls="recMenu"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></button>
+          <div class="rec-menu" id="recMenu" hidden></div>
+        </div>
+      </div>
+      <div class="rec-line">
+        <span class="rec-tag" data-i18n="rec.opp">상대 덱</span>
+        <input class="rec-input rec-opp" id="recOpp" type="text" maxlength="40" placeholder="상대 덱 이름" data-i18n-ph="rec.oppPh" data-i18n-aria="rec.oppPh" aria-label="상대 덱 이름" autocomplete="off" enterkeyhint="done">
+      </div>
+      <div class="rec-line">
+        <span class="rec-tag" data-i18n="rec.date">날짜</span>
+        <input class="rec-input rec-date" id="recDate" type="date" data-i18n-aria="rec.date" aria-label="날짜">
+      </div>
+      <div class="rec-res-row">
+        <button class="rec-res W" data-res="W" data-i18n="rec.W">승</button>
+        <button class="rec-res D" data-res="D" data-i18n="rec.D">무</button>
+        <button class="rec-res L" data-res="L" data-i18n="rec.L">패</button>
+      </div>
+    </div>
+    <div class="rec-list" id="recList"></div>
+    <div class="log-footer">
+      <span class="log-hint" id="recStats"></span>
+      <button class="log-export-btn" id="recExport" data-i18n-aria="rec.export" aria-label="전적을 텍스트 파일로 저장">TXT EXPORT</button>
+    </div>
+  </div>
+  <div class="toast" id="recToast" role="status" aria-live="polite"></div>
+</div>
+
+<script>
+  // version/build are bumped by rebuild.ps1 on every build — keep this line's format.
+  const APP = { name: "DigiMemory Checker", version: "1.2.0", build: "2026-10-18" };
+  const MAX = 10, MIN = -10;
+  const RESET_HOLD_MS = 1000;
+  const DELETE_HOLD_MS = 1000;
+  const LOAD_HOLD_MS = 1000;
+  const MERGE_MS = 1500;
+
+  const state = {
+    memory: 0,
+    flipped: false,
+    firstPlayer: null,
+    tamer1: false,
+    tamer2: false,
+    log: [],
+    logArchive: [],
+    logView: "current",
+    logName: null,
+  };
+  // SETTINGS panel, saved apart from the game (SETTINGS_KEY). bgDim / btnClear are percents.
+  const settings = { noRotate: false, bgDim: 25, btnClear: 0, lang: "ko" };
+
+  const $ = (id) => document.getElementById(id);
+  const strip = $("strip");
+  const memBtn = $("memBtn");
+  const memNumber = $("memNumber");
+  const turnBtn = $("turnBtn");
+  const undoBtn = $("undoBtn");
+  const circlesTop = document.querySelector('.circles[data-side="top"]');
+  const circlesBot = document.querySelector('.circles[data-side="bottom"]');
+  const logOverlay = $("logOverlay");
+  const logList = $("logList");
+  const logTabs = $("logTabs");
+  const turnPicker = $("turnPicker");
+  const helpOverlay = $("helpOverlay");
+  const toast = $("toast");
+  const turnFlash = $("turnFlash");
+  const rotator = document.querySelector(".rotator");
+  const bandTop = document.querySelector(".band-top");
+  const bandBottom = document.querySelector(".band-bottom");
+  const chipP1 = document.querySelector('.player-chip[data-player="1"]');
+  const chipP2 = document.querySelector('.player-chip[data-player="2"]');
+  const tamer1Btns = document.querySelectorAll('.util-btn.tamer[data-player="1"]');
+  const tamer2Btns = document.querySelectorAll('.util-btn.tamer[data-player="2"]');
+
+  function buildCircles(container) {
+    for (let i = 0; i < 20; i++) {
+      const c = document.createElement("div");
+      c.className = "circle";
+      container.appendChild(c);
+    }
+    return Array.from(container.children);
+  }
+  const circlesA = buildCircles(circlesTop);
+  const circlesB = buildCircles(circlesBot);
+
+  function vibrate(ms) { if (navigator.vibrate) { try { navigator.vibrate(ms); } catch {} } }
+  function clamp(n) { return Math.max(MIN, Math.min(MAX, n)); }
+  const p2 = (n) => String(n).padStart(2, "0");
+  const fmtTime = (d) => `${p2(d.getHours())}:${p2(d.getMinutes())}:${p2(d.getSeconds())}`;
+  const fmtArchiveName = (d) => `${p2(d.getMonth() + 1)}${p2(d.getDate())}${p2(d.getHours())}${p2(d.getMinutes())}`;
+  const fmtDate = (d) => `${d.getFullYear()}-${p2(d.getMonth() + 1)}-${p2(d.getDate())}`;
+  const stamp = (d = new Date()) => `${d.getFullYear()}${p2(d.getMonth() + 1)}${p2(d.getDate())}-${p2(d.getHours())}${p2(d.getMinutes())}`;
+  function showToast(msg, ms = 1200) {
+    // RECORD is drawn outside the rotated screen, so it has its own toast
+    const el = $("recOverlay").classList.contains("open") ? $("recToast") : toast;
+    el.textContent = msg;
+    el.classList.add("show");
+    clearTimeout(showToast._t);
+    showToast._t = setTimeout(() => el.classList.remove("show"), ms);
+  }
+  function snapshot() {
+    return { memory: state.memory, flipped: state.flipped, tamer1: state.tamer1, tamer2: state.tamer2, firstPlayer: state.firstPlayer };
+  }
+
+  // ---------- Persistence ----------
+  const STORAGE_KEY = "dcg-mem";
+  const SAVE_DELAY_MS = 300;
+  let saveTimer = 0;
+  // Batches rapid presses into one write; flushSave() runs when the app is hidden or closed.
+  function saveState() {
+    if (!saveTimer) saveTimer = setTimeout(flushSave, SAVE_DELAY_MS);
+  }
+  function flushSave() {
+    clearTimeout(saveTimer);
+    saveTimer = 0;
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({
+        memory: state.memory,
+        flipped: state.flipped,
+        firstPlayer: state.firstPlayer,
+        tamer1: state.tamer1,
+        tamer2: state.tamer2,
+        log: state.log,
+        logArchive: state.logArchive,
+        logName: state.logName,
+      }));
+    } catch {}
+  }
+  function loadState() {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (!raw) return false;
+      const s = JSON.parse(raw);
+      state.memory = s.memory ?? 0;
+      state.flipped = s.flipped ?? false;
+      state.firstPlayer = s.firstPlayer ?? null;
+      state.tamer1 = s.tamer1 ?? false;
+      state.tamer2 = s.tamer2 ?? false;
+      state.logName = s.logName ?? null;
+      state.log = (s.log ?? []).map(e => ({ ...e, time: new Date(e.time) }));
+      state.logArchive = (s.logArchive ?? []).map(a => ({
+        ...a,
+        endedAt: new Date(a.endedAt),
+        entries: a.entries.map(e => ({ ...e, time: new Date(e.time) })),
+      }));
+      return true;
+    } catch { return false; }
+  }
+
+  addEventListener("pagehide", flushSave);
+
+  // ---------- Wake Lock ----------
+  let wakeLock = null;
+  async function requestWakeLock() {
+    try {
+      if ("wakeLock" in navigator) {
+        wakeLock = await navigator.wakeLock.request("screen");
+        wakeLock.addEventListener("release", () => { wakeLock = null; });
+      }
+    } catch {}
+  }
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "hidden") { flushSave(); return; }
+    if (!wakeLock) requestWakeLock();
+    syncViewport();
+  });
+
+  // ---------- Viewport size fix (Android nav bar) ----------
+  let _rvp = 0;
+  function syncViewport() {
+    const r = document.documentElement;
+    r.style.setProperty("--real-h", window.innerHeight + "px");
+    r.style.setProperty("--real-w", window.innerWidth + "px");
+  }
+  syncViewport();
+  window.addEventListener("resize", () => {
+    cancelAnimationFrame(_rvp);
+    _rvp = requestAnimationFrame(() => { syncViewport(); unscroll(); });
+  }, { passive: true });
+
+  // ---------- Log ----------
+  function logEvent({ kind, delta, label, preState, value }) {
+    const now = Date.now();
+    const last = state.log[state.log.length - 1];
+    if (kind === "delta" && last && last.kind === "delta" && (now - last.timeMs) < MERGE_MS) {
+      last.presses.push(delta);
+      last.timeMs = now;
+      last.time = new Date();
+      last.value = value;
+      renderLog();
+      updateUndoButton();
+      saveState();
+      return;
+    }
+    state.log.push({
+      kind, timeMs: now, time: new Date(),
+      presses: kind === "delta" ? [delta] : null,
+      label: label ?? null,
+      value,
+      preState,
+    });
+    if (state.log.length > 500) state.log.shift();
+    renderLog();
+    updateUndoButton();
+    saveState();
+  }
+
+  function renderLogTabs() {
+    const view = state.logView;
+    const currentName = state.logName || "NEW";
+    let html = `<button class="log-tab is-current ${view === "current" ? "active" : ""}" data-view="current"><i class="tab-fill"></i><span>● ${currentName}</span></button>`;
+    const arcs = state.logArchive;
+    for (let i = arcs.length - 1; i >= 0; i--) {
+      html += `<button class="log-tab ${view === String(i) ? "active" : ""}" data-view="${i}"><i class="tab-fill"></i><span>${arcs[i].name}</span></button>`;
+    }
+    logTabs.innerHTML = html;
+  }
+
+  function currentViewEntries() {
+    if (state.logView === "current") return state.log;
+    const arc = state.logArchive[Number(state.logView)];
+    return arc ? arc.entries : [];
+  }
+
+  function renderLog() {
+    if (!logOverlay.classList.contains("open")) return;
+    renderLogTabs();
+    const entries = currentViewEntries();
+    if (entries.length === 0) {
+      logList.innerHTML = '<div class="log-empty">아직 기록이 없습니다.</div>';
+      return;
+    }
+    const n = entries.length;
+    const rows = new Array(n);
+    for (let i = 0; i < n; i++) rows[i] = entryHtml(entries[n - 1 - i]); // newest first
+    logList.innerHTML = rows.join("");
+    logList.scrollTop = 0;
+  }
+
+  logTabs.addEventListener("click", (e) => {
+    const tab = e.target.closest(".log-tab");
+    if (!tab) return;
+    if (tabHoldFired) { tabHoldFired = false; return; }
+    state.logView = tab.dataset.view;
+    renderLog();
+  });
+
+  // Hold a log tab for LOAD_HOLD_MS → load that game's last state (scrolling the tabs cancels).
+  let tabHoldFired = false;
+  (() => {
+    let raf = null, timer = null, start = 0, tab = null, sx = 0, sy = 0;
+    const paint = (pct) => { const f = tab && tab.querySelector(".tab-fill"); if (f) f.style.transform = `scaleX(${pct})`; };
+    const end = () => {
+      if (raf) cancelAnimationFrame(raf);
+      clearTimeout(timer);
+      raf = timer = null;
+      paint(0);
+      tab = null;
+    };
+    const tick = () => { paint(Math.min(1, (Date.now() - start) / LOAD_HOLD_MS)); raf = requestAnimationFrame(tick); };
+    logTabs.addEventListener("pointerdown", (e) => {
+      const t = e.target.closest(".log-tab");
+      if (!t || (e.pointerType === "mouse" && e.button !== 0)) return;
+      end();
+      tab = t;
+      tabHoldFired = false;
+      start = Date.now();
+      sx = e.clientX; sy = e.clientY;
+      raf = requestAnimationFrame(tick);
+      timer = setTimeout(() => {
+        const v = t.dataset.view;
+        end();
+        tabHoldFired = true; // ignore the click that follows the release
+        loadLog(v);
+      }, LOAD_HOLD_MS);
+    });
+    ["pointerup", "pointercancel", "pointerleave"].forEach((type) => logTabs.addEventListener(type, () => { if (tab) end(); }));
+    logTabs.addEventListener("pointermove", (e) => { if (tab && Math.hypot(e.clientX - sx, e.clientY - sy) > 10) end(); });
+    logTabs.addEventListener("contextmenu", (e) => e.preventDefault());
+  })();
+
+  function turnClass(e) {
+    const ps = e.preState;
+    if (!ps || ps.firstPlayer == null) return "";
+    /* preState.flipped=false → P1's turn, flipped=true → P2's turn (as in refreshTurnIndicators;
+       chooseFirstPlayer sets flipped=true when P2 goes first) */
+    return ps.flipped ? "turn-p2" : "turn-p1";
+  }
+
+  function entryHtml(e) {
+    const time = fmtTime(e.time);
+    const tc = turnClass(e);
+    if (e.kind === "delta") {
+      const net = e.presses.reduce((a, b) => a + b, 0);
+      const tagClass = net > 0 ? "plus" : net < 0 ? "minus" : "zero";
+      const netStr = (net > 0 ? "+" : "") + net;
+      const pressesStr = e.presses.length > 1
+        ? `<span class="log-presses">${e.presses.map(p => (p > 0 ? "+" : "") + p).join(" · ")}</span>`
+        : "";
+      const valCls = e.value > 0 ? "pos" : e.value < 0 ? "neg" : "";
+      const valStr = (e.value > 0 ? "+" : "") + e.value;
+      return `<div class="log-row ${tc}"><div class="log-time">${time}</div><div class="log-action"><span class="tag ${tagClass}">${netStr}</span>${pressesStr}</div><div class="log-value ${valCls}">${valStr}</div></div>`;
+    }
+    if (e.kind === "turn") {
+      const valCls = e.value > 0 ? "pos" : e.value < 0 ? "neg" : "";
+      const valStr = (e.value > 0 ? "+" : "") + e.value;
+      return `<div class="log-row ${tc}"><div class="log-time">${time}</div><div class="log-action"><span class="tag turn">${e.label}</span></div><div class="log-value ${valCls}">${valStr}</div></div>`;
+    }
+    if (e.kind === "start") {
+      return `<div class="log-row ${tc}"><div class="log-time">${time}</div><div class="log-action"><span class="tag start">${e.label}</span></div><div class="log-value">시작</div></div>`;
+    }
+    if (e.kind === "load") {
+      const valCls = e.value > 0 ? "pos" : e.value < 0 ? "neg" : "";
+      const valStr = (e.value > 0 ? "+" : "") + e.value;
+      return `<div class="log-row ${tc}"><div class="log-time">${time}</div><div class="log-action"><span class="tag load">${e.label}</span></div><div class="log-value ${valCls}">${valStr}</div></div>`;
+    }
+    if (e.kind === "reset") {
+      return `<div class="log-row"><div class="log-time">${time}</div><div class="log-action"><span class="tag reset">초기화</span></div><div class="log-value">0</div></div>`;
+    }
+    if (e.kind === "tamer") {
+      return `<div class="log-row ${tc}"><div class="log-time">${time}</div><div class="log-action"><span class="tag tamer">${e.label}</span></div><div class="log-value">—</div></div>`;
+    }
+    return "";
+  }
+
+  let lastCanUndo = null;
+  function updateUndoButton() {
+    const canUndo = state.log.length > 0;
+    if (canUndo === lastCanUndo) return;
+    lastCanUndo = canUndo;
+    undoBtn.disabled = !canUndo;
+  }
+
+  // ---------- Render ----------
+  function paintCircles(arr) {
+    const mem = state.memory;
+    const abs = mem < 0 ? -mem : mem;
+    const isPos = mem > 0;
+    const isNeg = mem < 0;
+    const f = state.flipped;
+    for (let i = 0; i < 20; i++) {
+      let cls = "circle";
+      if (f) {
+        /* P2 turn: blue=right(screen)=left(P2), red=left(screen)=right(P2) */
+        if (isPos && i >= 10 && i < 10 + abs) cls = "circle blue";
+        else if (isNeg && i >= 10 - abs && i < 10) cls = "circle red";
+      } else {
+        /* P1 turn: blue=left(screen)=left(P1), red=right(screen)=right(P1) */
+        if (isPos && i >= 10 - abs && i < 10) cls = "circle blue";
+        else if (isNeg && i >= 10 && i < 10 + abs) cls = "circle red";
+      }
+      const el = arr[i];
+      if (el.className !== cls) el.className = cls;
+    }
+  }
+
+  function refreshTamerButtons() {
+    const on1 = state.tamer1, on2 = state.tamer2;
+    for (const b of tamer1Btns) { b.classList.toggle("active", on1); b.setAttribute("aria-pressed", on1 ? "true" : "false"); }
+    for (const b of tamer2Btns) { b.classList.toggle("active", on2); b.setAttribute("aria-pressed", on2 ? "true" : "false"); }
+  }
+
+  function refreshTurnIndicators() {
+    chipP1.classList.remove("first", "second");
+    chipP2.classList.remove("first", "second");
+    bandTop.classList.remove("active-first", "active-second");
+    bandBottom.classList.remove("active-first", "active-second");
+    if (state.firstPlayer == null) return;
+    const p1Active = !state.flipped;
+    const roleCls = (p1Active ? "1" : "2") === state.firstPlayer ? "first" : "second";
+    (p1Active ? chipP1 : chipP2).classList.add(roleCls);
+    (p1Active ? bandBottom : bandTop).classList.add("active-" + roleCls);
+  }
+
+  let lastMemory = NaN;
+  let lastFlipped = null;
+  let lastFirstPlayer = undefined;
+
+  function render(withPop = true) {
+    const mem = state.memory;
+    const memChanged = mem !== lastMemory;
+    const turnChanged = state.flipped !== lastFlipped || state.firstPlayer !== lastFirstPlayer;
+
+    if (memChanged) {
+      memNumber.textContent = mem;
+      memBtn.classList.toggle("positive", mem > 0);
+      memBtn.classList.toggle("negative", mem < 0);
+      memBtn.classList.toggle("zero", mem === 0);
+      circlesTop.classList.toggle("zero-active", mem === 0);
+      circlesBot.classList.toggle("zero-active", mem === 0);
+      if (withPop) {
+        memNumber.classList.remove("pop");
+        requestAnimationFrame(() => { requestAnimationFrame(() => { memNumber.classList.add("pop"); }); });
+      }
+      lastMemory = mem;
+    }
+
+    if (turnChanged) {
+      refreshTurnIndicators();
+      lastFlipped = state.flipped;
+      lastFirstPlayer = state.firstPlayer;
+    }
+    if (memChanged || turnChanged) { paintCircles(circlesA); paintCircles(circlesB); }
+  }
+
+  // The strip turns to face the player whose turn it is, except in no-rotate mode.
+  function applyFlip() { strip.classList.toggle("flipped", state.flipped && !settings.noRotate); }
+
+  // ---------- Actions ----------
+  function applyDelta(d) {
+    const next = clamp(state.memory + d);
+    if (next === state.memory) {
+      vibrate(4);
+      showToast(`메모리 한계 (${state.memory > 0 ? "+" : ""}${state.memory})`);
+      return;
+    }
+    const pre = snapshot();
+    state.memory = next;
+    vibrate(8);
+    logEvent({ kind: "delta", delta: d, preState: pre, value: state.memory });
+    render();
+  }
+
+  function flipTurn() {
+    const pre = snapshot();
+    const prev = state.memory;
+    const receivingTamer = state.flipped ? state.tamer1 : state.tamer2;
+    let next;
+    if (prev >= 0) next = 3;
+    else {
+      const abs = -prev;
+      if (receivingTamer && abs <= 2) next = 3;
+      else next = abs;
+    }
+    state.memory = clamp(next);
+    state.flipped = !state.flipped;
+    applyFlip();
+    turnFlash.classList.add("on");
+    setTimeout(() => turnFlash.classList.remove("on"), 260);
+    vibrate([15, 40, 15]);
+    logEvent({ kind: "turn", label: `P${state.flipped ? 2 : 1} 턴 시작`, preState: pre, value: state.memory });
+    render();
+  }
+
+  // Move the current log into the archive (keeps the latest 10).
+  function archiveCurrent() {
+    if (state.log.length > 0) {
+      state.logArchive.push({
+        name: state.logName || fmtArchiveName(new Date()),
+        entries: state.log.slice(),
+        endedAt: new Date(),
+      });
+      if (state.logArchive.length > 10) state.logArchive.shift();
+    }
+    state.log = [];
+    state.logName = null;
+  }
+
+  // The game state right after a log's last entry. Every entry stores the state before it
+  // (preState) plus its result, so this works for logs saved by older versions too.
+  function snapFromEntries(entries) {
+    const e = entries && entries[entries.length - 1];
+    if (!e || !e.preState) return null;
+    const s = { ...e.preState };
+    if (e.kind === "delta" || e.kind === "load") s.memory = e.value;
+    else if (e.kind === "turn") { s.memory = e.value; s.flipped = !s.flipped; }
+    else if (e.kind === "tamer") {
+      const m = /^P([12]) MEMORY TAMER (ON|OFF)$/.exec(e.label || "");
+      if (m) s["tamer" + m[1]] = m[2] === "ON";
+    }
+    return s.firstPlayer == null ? null : s;
+  }
+
+  // Hold a log tab → continue that game from its last state.
+  function loadLog(view) {
+    if (view === "current") {
+      showToast(state.firstPlayer != null ? "지금 진행 중인 게임입니다" : "불러올 상황이 없습니다");
+      return;
+    }
+    const k = Number(view);
+    const arc = state.logArchive[k];
+    const snap = arc && snapFromEntries(arc.entries);
+    if (!snap) { showToast("이 로그에는 불러올 상황이 없습니다"); return; }
+    state.logArchive.splice(k, 1);
+    archiveCurrent();
+    state.log = arc.entries;
+    state.logName = arc.name;
+    state.memory = clamp(snap.memory ?? 0);
+    state.flipped = !!snap.flipped;
+    state.firstPlayer = snap.firstPlayer;
+    state.tamer1 = !!snap.tamer1;
+    state.tamer2 = !!snap.tamer2;
+    applyFlip();
+    refreshTamerButtons();
+    state.logView = "current";
+    logOverlay.classList.remove("open");
+    closeTurnPicker();
+    logEvent({ kind: "load", label: "로그 불러오기", preState: snapshot(), value: state.memory });
+    render(false);
+    showToast(`${arc.name} 불러오기`);
+    vibrate(15);
+    requestWakeLock();
+  }
+
+  function resetAll() {
+    archiveCurrent();
+    state.memory = 0;
+    state.firstPlayer = null;
+    state.tamer1 = false;
+    state.tamer2 = false;
+    refreshTamerButtons();
+    state.flipped = false; applyFlip();
+    state.logView = "current";
+    render();
+    updateUndoButton();
+    renderLog();
+    saveState();
+    showToast("초기화 완료 · 선턴을 결정하세요");
+    vibrate(20);
+    openTurnPicker();
+  }
+
+  function toggleTamer(player) {
+    const pre = snapshot();
+    const key = player === "1" ? "tamer1" : "tamer2";
+    state[key] = !state[key];
+    refreshTamerButtons();
+    logEvent({ kind: "tamer", label: `P${player} MEMORY TAMER ${state[key] ? "ON" : "OFF"}`, preState: pre, value: null });
+    showToast(state[key] ? `P${player} MEMORY TAMER ON · −1~−2 → +3` : `P${player} MEMORY TAMER OFF`);
+    vibrate(8);
+  }
+
+  function undo() {
+    if (state.log.length === 0) {
+      showToast("되돌릴 기록이 없습니다");
+      return;
+    }
+    const last = state.log.pop();
+    const ps = last.preState;
+    state.memory = ps.memory;
+    state.flipped = ps.flipped;
+    state.tamer1 = ps.tamer1;
+    state.tamer2 = ps.tamer2;
+    if (ps.firstPlayer !== undefined) state.firstPlayer = ps.firstPlayer;
+    applyFlip();
+    refreshTamerButtons();
+    render(false);
+    saveState();
+    renderLog();
+    updateUndoButton();
+    showToast("되돌리기");
+    vibrate(6);
+  }
+
+  // ---------- Turn picker ----------
+  function openTurnPicker() { turnPicker.classList.add("open"); }
+  function closeTurnPicker() { turnPicker.classList.remove("open"); }
+  function chooseFirstPlayer(player) {
+    state.logName = fmtArchiveName(new Date());
+    const firstIsP2 = player === "2";
+    state.firstPlayer = player;
+    state.flipped = firstIsP2;
+    applyFlip();
+    state.memory = 0;
+    const pre = { memory: 0, flipped: firstIsP2, tamer1: state.tamer1, tamer2: state.tamer2, firstPlayer: player };
+    logEvent({ kind: "start", label: `P${player} 선턴`, preState: pre, value: 0 });
+    render();
+    closeTurnPicker();
+    showToast(`P${player} 선턴으로 시작`);
+    vibrate(10);
+  }
+  document.querySelectorAll(".tp-btn").forEach(btn => {
+    btn.addEventListener("click", () => chooseFirstPlayer(btn.dataset.player));
+  });
+
+  // ---------- Delta buttons ----------
+  document.querySelectorAll(".delta").forEach((btn) => {
+    const d = parseInt(btn.dataset.delta, 10);
+    btn.addEventListener("click", () => applyDelta(d));
+  });
+
+  // ---------- Hold helper ----------
+  function attachHold(btn, ms, onFire, onProgress) {
+    let raf = null, start = 0;
+    function tick() {
+      const pct = Math.min(1, (Date.now() - start) / ms);
+      if (onProgress) onProgress(pct);
+      if (pct >= 1) { end(); onFire(); }
+      else raf = requestAnimationFrame(tick);
+    }
+    function begin(ev) {
+      if (ev.pointerType === "mouse" && ev.button !== 0) return;
+      ev.preventDefault();
+      try { btn.setPointerCapture(ev.pointerId); } catch {}
+      start = Date.now();
+      if (onProgress) onProgress(0);
+      raf = requestAnimationFrame(tick);
+      vibrate(4);
+    }
+    function end() {
+      if (raf) cancelAnimationFrame(raf);
+      raf = null;
+      if (onProgress) onProgress(0);
+    }
+    btn.addEventListener("pointerdown", begin);
+    btn.addEventListener("pointerup", end);
+    btn.addEventListener("pointercancel", end);
+    btn.addEventListener("lostpointercapture", end);
+    btn.addEventListener("contextmenu", (e) => e.preventDefault());
+  }
+
+  turnBtn.addEventListener("click", () => flipTurn());
+  undoBtn.addEventListener("click", () => undo());
+
+  // ---------- Drag-to-set memory ----------
+  let dragActive = false;
+  let dragDelta = null;
+  let dragTargetEl = null;
+
+  function setDragTarget(el, delta) {
+    if (dragTargetEl === el) return;
+    if (dragTargetEl) dragTargetEl.classList.remove("drag-target");
+    dragTargetEl = el;
+    dragDelta = delta;
+    if (dragTargetEl) { dragTargetEl.classList.add("drag-target"); vibrate(3); }
+  }
+
+  function memDragStart(ev) {
+    if (ev.pointerType === "mouse" && ev.button !== 0) return;
+    ev.preventDefault();
+    dragActive = true;
+    try { memBtn.setPointerCapture(ev.pointerId); } catch {}
+    memBtn.classList.add("dragging");
+    vibrate(4);
+  }
+  function memDragMove(ev) {
+    if (!dragActive) return;
+    ev.preventDefault();
+    const el = document.elementFromPoint(ev.clientX, ev.clientY);
+    const deltaBtn = el ? el.closest(".delta") : null;
+    if (deltaBtn) setDragTarget(deltaBtn, parseInt(deltaBtn.dataset.delta, 10));
+    else setDragTarget(null, null);
+  }
+  function memDragEnd() {
+    if (!dragActive) return;
+    dragActive = false;
+    memBtn.classList.remove("dragging");
+    const delta = dragDelta;
+    setDragTarget(null, null);
+    if (delta) applyDelta(delta);
+  }
+  memBtn.addEventListener("pointerdown", memDragStart);
+  memBtn.addEventListener("pointermove", memDragMove);
+  memBtn.addEventListener("pointerup", memDragEnd);
+  memBtn.addEventListener("pointercancel", memDragEnd);
+  memBtn.addEventListener("contextmenu", (e) => e.preventDefault());
+
+  document.querySelectorAll('.util-btn[data-action="reset"]').forEach((btn) => {
+    const fill = btn.querySelector(".hold-fill");
+    attachHold(btn, RESET_HOLD_MS, resetAll, (pct) => { fill.style.transform = `scaleX(${pct})`; });
+  });
+
+  // LOG / HELP opened from P2's band turn 180° to face P2 (not in no-rotate mode, where P2's band is upright too).
+  function faceOpener(overlay, btn) {
+    overlay.classList.toggle("p2view", !!(btn && btn.closest(".band-top")) && !settings.noRotate);
+  }
+  function openLog(btn) { faceOpener(logOverlay, btn); logOverlay.classList.add("open"); state.logView = "current"; renderLog(); }
+  // From the first-turn picker too, so a game archived on reopen can be loaded right away
+  $("tpLog").addEventListener("click", () => openLog(null));
+
+  // ---------- Util button listeners ----------
+  document.querySelectorAll(".util-btn").forEach((btn) => {
+    const action = btn.dataset.action;
+    if (btn.classList.contains("tamer")) {
+      btn.addEventListener("click", () => toggleTamer(btn.dataset.player));
+    } else if (action === "log") {
+      btn.addEventListener("click", () => openLog(btn));
+    } else if (action === "help") {
+      btn.addEventListener("click", () => { faceOpener(helpOverlay, btn); helpOverlay.classList.add("open"); });
+    } else if (action === "record") {
+      btn.addEventListener("click", openRecord);
+    } else if (action === "settings") {
+      btn.addEventListener("click", openSettings);
+    }
+  });
+
+  $("logClose").addEventListener("click", () => logOverlay.classList.remove("open"));
+  logOverlay.addEventListener("click", (e) => { if (e.target === logOverlay) logOverlay.classList.remove("open"); });
+  $("helpClose").addEventListener("click", () => helpOverlay.classList.remove("open"));
+  helpOverlay.addEventListener("click", (e) => { if (e.target === helpOverlay) helpOverlay.classList.remove("open"); });
+
+  // ---------- ALL DELETE (log) ----------
+  const logDeleteBtn = $("logDeleteAll");
+  const logDeleteFill = logDeleteBtn.querySelector(".hold-fill");
+  function deleteAllLogs() {
+    state.log = [];
+    state.logArchive = [];
+    state.logName = null;
+    state.logView = "current";
+    state.memory = 0;
+    state.firstPlayer = null;
+    state.tamer1 = false;
+    state.tamer2 = false;
+    state.flipped = false; applyFlip();
+    refreshTamerButtons();
+    render(false);
+    updateUndoButton();
+    renderLog();
+    saveState();
+    logOverlay.classList.remove("open");
+    showToast("모든 로그 삭제 · 새 게임을 시작하세요");
+    vibrate(15);
+    openTurnPicker();
+  }
+  attachHold(logDeleteBtn, DELETE_HOLD_MS, deleteAllLogs, (pct) => { logDeleteFill.style.transform = `scaleX(${pct})`; });
+
+  // ---------- Text file export (logs, record) ----------
+  // APK: MainActivity's DigiNative.saveText opens Android's "save as" screen (no storage permission);
+  // the result comes back through window.onTextSaved. Browser: a normal download.
+  // claude.ai artifact: plain download links are blocked there, so files go through the viewer's save prompt.
+  let claudeDownloads = null;
+  if (window.claude && typeof window.claude.use === "function") {
+    window.claude.use("downloads").then((d) => { claudeDownloads = d; }, () => {});
+  }
+  function saveTextFile(name, text) {
+    if (window.DigiNative && window.DigiNative.saveText) { window.DigiNative.saveText(name, text); return; }
+    if (claudeDownloads) {
+      claudeDownloads.save({ filename: name, data: text }).then(
+        () => window.onTextSaved("ok"),
+        (e) => window.onTextSaved(e && e.code === "declined" ? "cancel" : "fail"));
+      return;
+    }
+    try {
+      const url = URL.createObjectURL(new Blob([text], { type: "text/plain;charset=utf-8" }));
+      const a = document.createElement("a");
+      a.href = url; a.download = name;
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 5000);
+      showToast(t("file.ok"), 1800);
+    } catch { showToast(t("file.none"), 2000); }
+  }
+  window.onTextSaved = (r) => {
+    showToast(t(r === "ok" ? "file.ok" : r === "cancel" ? "file.cancel" : "file.fail"), 1800);
+  };
+
+  // One log row as text, same content as entryHtml.
+  function entryText(e) {
+    const sv = (v) => (v > 0 ? "+" : "") + v;
+    const tc = turnClass(e);
+    const who = tc === "turn-p1" ? "P1" : tc === "turn-p2" ? "P2" : "  ";
+    const head = `${fmtTime(e.time)}  ${who}  `;
+    if (e.kind === "delta") {
+      const net = e.presses.reduce((a, b) => a + b, 0);
+      const presses = e.presses.length > 1 ? ` (${e.presses.map(sv).join(" · ")})` : "";
+      return `${head}${sv(net)}${presses}  →  ${sv(e.value)}`;
+    }
+    if (e.kind === "turn" || e.kind === "load") return `${head}${e.label}  →  ${sv(e.value)}`;
+    if (e.kind === "start") return `${head}${e.label}  →  시작`;
+    if (e.kind === "reset") return `${head}초기화  →  0`;
+    if (e.kind === "tamer") return `${head}${e.label}`;
+    return "";
+  }
+  // Every game (archived oldest first, then the current one), rows newest first like the LOG screen.
+  function logsToText() {
+    const games = state.logArchive.map((a) => ({ name: a.name, note: `${fmtDate(a.endedAt)} 보관`, entries: a.entries }));
+    if (state.log.length) games.push({ name: state.logName || "NEW", note: "진행 중", entries: state.log });
+    const now = new Date();
+    const out = [`${APP.name} ${APP.version} · 로그 내보내기 ${fmtDate(now)} ${fmtTime(now)}`, `게임 ${games.length}개`, ""];
+    games.forEach((g) => {
+      out.push("=".repeat(48), `[${g.name}] ${g.note}`, "-".repeat(48));
+      g.entries.slice().reverse().forEach((e) => { const line = entryText(e); if (line) out.push(line); });
+      out.push("");
+    });
+    return out.join("\n");
+  }
+  $("logExport").addEventListener("click", () => {
+    if (!state.log.length && !state.logArchive.length) { showToast("내보낼 로그가 없어요"); return; }
+    saveTextFile(`digimemory-log-${stamp()}.txt`, logsToText());
+  });
+
+  // ---------- Language (SETTINGS, KOR / ENG): SETTINGS and RECORD screens and their messages ----------
+  const I18N = {
+    ko: {
+      close: "닫기",
+      "set.lang": "언어",
+      "set.noRotate": "무회전 모드",
+      "set.noRotate.d": "END TURN 때 화면이 돌아가지 않아요. 폰을 한쪽에 두고 볼 때",
+      "set.bg": "배경 사진",
+      "set.bg.d": "폰에 있는 사진을 배경으로 써요",
+      "set.bgPick": "사진 고르기",
+      "set.bgClear": "지우기",
+      "set.bgDim": "배경 어둡게",
+      "set.bgDim.d": "숫자와 글자가 잘 보이게",
+      "set.btnClear": "버튼 투명도",
+      "set.btnClear.d": "배경 사진이 있을 때만",
+      "set.norotOn": "무회전 모드 ON",
+      "set.norotOff": "무회전 모드 OFF",
+      "set.bgSet": "배경 사진을 바꿨어요",
+      "set.bgFail": "이 사진은 배경으로 쓸 수 없어요",
+      "set.bgCleared": "배경 사진을 지웠어요",
+      "rec.title": "RECORD · 전적 메모",
+      "rec.mine": "내 덱",
+      "rec.opp": "상대 덱",
+      "rec.date": "날짜",
+      "rec.minePh": "내 덱 이름",
+      "rec.oppPh": "상대 덱 이름",
+      "rec.recent": "최근 덱",
+      "rec.W": "승", "rec.D": "무", "rec.L": "패",
+      "rec.short.W": "승", "rec.short.D": "무", "rec.short.L": "패",
+      "rec.export": "전적을 텍스트 파일로 저장",
+      "rec.newGame": "NEW GAME 1초 누르기: 새 게임 시작",
+      "rec.empty": "아직 전적이 없습니다.<br>내 덱과 상대 덱을 적고 승 / 무 / 패를 누르세요.",
+      "rec.menuEmpty": "최근 덱이 없어요. 덱 이름을 적으면 여기에 5개까지 남아요.",
+      "rec.del": "삭제?",
+      "rec.delAria": "삭제",
+      "rec.all": "전체",
+      "rec.deleted": "기록을 지웠어요",
+      "rec.noExport": "내보낼 전적이 없어요",
+      "rec.noSpace": "저장 공간이 부족해요",
+      "rec.noDeck": "(덱 이름 없음)",
+      "rec.txtHead": "전적 내보내기",
+      "rec.byDeck": "내 덱별",
+      "file.ok": "파일로 저장했어요",
+      "file.cancel": "저장을 취소했어요",
+      "file.fail": "저장하지 못했어요",
+      "file.none": "이 환경에서는 파일로 저장할 수 없어요",
+    },
+    en: {
+      close: "Close",
+      "set.lang": "Language",
+      "set.noRotate": "No-rotate mode",
+      "set.noRotate.d": "The screen doesn't turn on END TURN. For a phone placed on one side",
+      "set.bg": "Background photo",
+      "set.bg.d": "Use a photo from your phone as the background",
+      "set.bgPick": "Choose photo",
+      "set.bgClear": "Remove",
+      "set.bgDim": "Dim background",
+      "set.bgDim.d": "Keeps numbers and text readable",
+      "set.btnClear": "Button transparency",
+      "set.btnClear.d": "Only with a background photo",
+      "set.norotOn": "No-rotate mode ON",
+      "set.norotOff": "No-rotate mode OFF",
+      "set.bgSet": "Background photo set",
+      "set.bgFail": "This photo can't be used as a background",
+      "set.bgCleared": "Background photo removed",
+      "rec.title": "RECORD · Match memo",
+      "rec.mine": "My deck",
+      "rec.opp": "Opponent",
+      "rec.date": "Date",
+      "rec.minePh": "Your deck name",
+      "rec.oppPh": "Opponent's deck name",
+      "rec.recent": "Recent decks",
+      "rec.W": "WIN", "rec.D": "DRAW", "rec.L": "LOSS",
+      "rec.short.W": "W", "rec.short.D": "D", "rec.short.L": "L",
+      "rec.export": "Save the record as a text file",
+      "rec.newGame": "Hold NEW GAME for 1 second: start a new game",
+      "rec.empty": "No matches yet.<br>Enter your deck and the opponent's, then tap WIN / DRAW / LOSS.",
+      "rec.menuEmpty": "No recent decks yet. Up to 5 deck names you enter are kept here.",
+      "rec.del": "Delete?",
+      "rec.delAria": "Delete",
+      "rec.all": "All",
+      "rec.deleted": "Entry deleted",
+      "rec.noExport": "No matches to export",
+      "rec.noSpace": "Not enough storage space",
+      "rec.noDeck": "(no deck name)",
+      "rec.txtHead": "Match record export",
+      "rec.byDeck": "By my deck",
+      "file.ok": "Saved as a file",
+      "file.cancel": "Save canceled",
+      "file.fail": "Couldn't save the file",
+      "file.none": "Files can't be saved here",
+    },
+  };
+  const t = (k) => (I18N[settings.lang] || I18N.ko)[k] ?? I18N.ko[k] ?? k;
+  // Elements marked data-i18n (text), data-i18n-ph (placeholder), data-i18n-aria (aria-label)
+  function applyLang() {
+    document.documentElement.lang = settings.lang === "en" ? "en" : "ko";
+    document.querySelectorAll("[data-i18n]").forEach((el) => { el.textContent = t(el.dataset.i18n); });
+    document.querySelectorAll("[data-i18n-ph]").forEach((el) => { el.placeholder = t(el.dataset.i18nPh); });
+    document.querySelectorAll("[data-i18n-aria]").forEach((el) => { el.setAttribute("aria-label", t(el.dataset.i18nAria)); });
+  }
+
+  // ---------- Record: personal match memo (date, my deck, opponent deck, win/draw/loss), separate from the logs ----------
+  // Drawn upright (portrait) outside the rotated game screen, so it reads and types like a normal phone screen.
+  // My deck stays filled after a result (and across app restarts: the latest name in MYDECKS_KEY);
+  // the opponent deck is cleared after each result.
+  const RECORDS_KEY = "dcg-mem-records";
+  const MYDECKS_KEY = "dcg-mem-mydecks"; // recent my-deck names, newest first, up to MYDECKS_MAX
+  const MYDECKS_MAX = 5;
+  let records = [];
+  let myDecks = [];
+  const recOverlay = $("recOverlay");
+  const recDate = $("recDate");
+  const recDeck = $("recDeck");
+  const recOpp = $("recOpp");
+  const recMenu = $("recMenu");
+  const recDeckMenu = $("recDeckMenu");
+  const recList = $("recList");
+  // Newest first: by date, then by the order they were added.
+  const sortedRecords = () => records.slice().sort((a, b) => (a.date === b.date ? b.id - a.id : a.date < b.date ? 1 : -1));
+  function loadRecords() {
+    try { const r = JSON.parse(localStorage.getItem(RECORDS_KEY) || "[]"); if (Array.isArray(r)) records = r; } catch {}
+    try {
+      const d = JSON.parse(localStorage.getItem(MYDECKS_KEY) || "null");
+      if (Array.isArray(d)) myDecks = d.filter((x) => typeof x === "string" && x).slice(0, MYDECKS_MAX);
+      else sortedRecords().forEach((r) => { if (r.deck && !myDecks.includes(r.deck) && myDecks.length < MYDECKS_MAX) myDecks.push(r.deck); }); // records from 1.2.0
+    } catch {}
+    recDeck.value = myDecks[0] || "";
+  }
+  function saveRecords() {
+    try { localStorage.setItem(RECORDS_KEY, JSON.stringify(records)); } catch { showToast(t("rec.noSpace"), 2000); }
+  }
+  // Put a my-deck name at the top of the recent list (renaming keeps the old name in the list).
+  function rememberDeck(name) {
+    name = name.trim();
+    if (!name) return;
+    myDecks = [name, ...myDecks.filter((d) => d !== name)].slice(0, MYDECKS_MAX);
+    try { localStorage.setItem(MYDECKS_KEY, JSON.stringify(myDecks)); } catch {}
+  }
+  const escHtml = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+  function tally(list) {
+    const n = { W: 0, D: 0, L: 0 };
+    list.forEach((r) => { n[r.result]++; });
+    const total = list.length;
+    const rate = total ? Math.round((n.W / total) * 100) : 0;
+    if (settings.lang === "en") return `${total} games ${n.W}W ${n.D}D ${n.L}L${total ? ` · win rate ${rate}%` : ""}`;
+    return `${total}전 ${n.W}승 ${n.D}무 ${n.L}패${total ? ` · 승률 ${rate}%` : ""}`;
+  }
+  let recDelArmed = null, recDelTimer = 0;
+  function renderRecords() {
+    const list = sortedRecords();
+    recList.innerHTML = list.length
+      ? list.map((r) => {
+          const armed = recDelArmed === r.id;
+          const decks = `${r.deck ? escHtml(r.deck) : "—"}<i>vs</i>${r.opp ? escHtml(r.opp) : "—"}`;
+          return `<div class="rec-row"><span class="r-date">${escHtml(r.date)}</span><span class="r-deck">${decks}</span><span class="r-res ${r.result}">${t("rec.short." + r.result)}</span><button class="r-del${armed ? " armed" : ""}" data-id="${r.id}" aria-label="${t("rec.delAria")}">${armed ? t("rec.del") : "✕"}</button></div>`;
+        }).join("")
+      : `<div class="log-empty">${t("rec.empty")}</div>`;
+    renderRecStats();
+  }
+  function renderRecStats() {
+    const deck = recDeck.value.trim();
+    const mine = deck ? records.filter((r) => r.deck === deck) : [];
+    $("recStats").textContent = `${t("rec.all")} ${tally(records)}` + (mine.length ? `  |  ${deck} ${tally(mine)}` : "");
+  }
+  function renderDeckMenu() {
+    const deck = recDeck.value.trim();
+    recMenu.innerHTML = myDecks.length
+      ? myDecks.map((d) => `<button class="${d === deck ? "on" : ""}" data-deck="${escHtml(d)}">${escHtml(d)}</button>`).join("")
+      : `<div class="rec-menu-empty">${t("rec.menuEmpty")}</div>`;
+  }
+  function setDeckMenu(open) {
+    if (open) renderDeckMenu();
+    recMenu.hidden = !open;
+    recDeckMenu.setAttribute("aria-expanded", open ? "true" : "false");
+  }
+  function addRecord(result) {
+    const date = recDate.value || fmtDate(new Date());
+    const deck = recDeck.value.trim();
+    const opp = recOpp.value.trim();
+    const id = records.reduce((m, r) => Math.max(m, r.id + 1), Date.now());
+    records.push({ id, date, deck, opp, result });
+    saveRecords();
+    rememberDeck(deck);
+    recOpp.value = "";
+    setDeckMenu(false);
+    renderRecords();
+    vibrate(10);
+    showToast(`${t("rec." + result)} · ${deck || "—"} vs ${opp || "—"}`);
+  }
+  function openRecord() {
+    recDate.value = fmtDate(new Date());
+    if (!recDeck.value.trim()) recDeck.value = myDecks[0] || "";
+    recDelArmed = null;
+    setDeckMenu(false);
+    renderRecords();
+    recOverlay.classList.add("open");
+  }
+  function closeRecord() {
+    if (recOverlay.contains(document.activeElement)) document.activeElement.blur();
+    setDeckMenu(false);
+    recOverlay.classList.remove("open");
+  }
+  recOverlay.querySelectorAll(".rec-res").forEach((b) => b.addEventListener("click", () => addRecord(b.dataset.res)));
+  recDeckMenu.addEventListener("click", () => setDeckMenu(recMenu.hidden));
+  recMenu.addEventListener("click", (e) => {
+    const b = e.target.closest("button[data-deck]");
+    if (!b) return;
+    recDeck.value = b.dataset.deck;
+    rememberDeck(b.dataset.deck);
+    setDeckMenu(false);
+    renderRecords();
+  });
+  recDeck.addEventListener("input", renderRecStats);
+  recDeck.addEventListener("change", () => rememberDeck(recDeck.value)); // typed a new name: keep it in the recent list
+  [recDeck, recOpp].forEach((el) => el.addEventListener("keydown", (e) => { if (e.key === "Enter") el.blur(); }));
+  // ✕ arms the row (Delete?), a second tap within 2.5 s deletes it.
+  recList.addEventListener("click", (e) => {
+    const b = e.target.closest(".r-del");
+    if (!b) return;
+    const id = Number(b.dataset.id);
+    clearTimeout(recDelTimer);
+    if (recDelArmed === id) {
+      records = records.filter((r) => r.id !== id);
+      recDelArmed = null;
+      saveRecords();
+      showToast(t("rec.deleted"));
+      vibrate(8);
+    } else {
+      recDelArmed = id;
+      recDelTimer = setTimeout(() => { recDelArmed = null; renderRecords(); }, 2500);
+    }
+    renderRecords();
+  });
+  function recordsToText() {
+    const now = new Date();
+    const out = [`${APP.name} ${APP.version} · ${t("rec.txtHead")} ${fmtDate(now)} ${fmtTime(now)}`, `${t("rec.all")} ${tally(records)}`, "", t("rec.byDeck")];
+    const list = sortedRecords();
+    const decks = [...new Set(list.map((r) => r.deck))];
+    decks.forEach((d) => out.push(`  ${d || t("rec.noDeck")}: ${tally(records.filter((r) => r.deck === d))}`));
+    out.push("", "=".repeat(40));
+    list.forEach((r) => out.push(`${r.date}  ${t("rec.short." + r.result)}  ${r.deck || "-"}  vs  ${r.opp || "-"}`));
+    return out.join("\n");
+  }
+  $("recExport").addEventListener("click", () => {
+    if (!records.length) { showToast(t("rec.noExport")); return; }
+    saveTextFile(`digimemory-record-${stamp()}.txt`, recordsToText());
+  });
+  // NEW GAME inside RECORD: hold like the band's NEW GAME, then back to the first-turn screen
+  const recNewGame = $("recNewGame");
+  const recNewGameFill = recNewGame.querySelector(".hold-fill");
+  attachHold(recNewGame, RESET_HOLD_MS, () => { closeRecord(); resetAll(); }, (pct) => { recNewGameFill.style.transform = `scaleX(${pct})`; });
+  $("recClose").addEventListener("click", closeRecord);
+  recOverlay.addEventListener("click", (e) => {
+    if (e.target === recOverlay) { closeRecord(); return; }
+    if (!e.target.closest(".rec-deck-wrap")) setDeckMenu(false); // tap outside the menu closes it
+  });
+  $("tpRecord").addEventListener("click", openRecord);
+
+  // Focusing the deck-name field (or the keyboard resizing the page) can scroll the page
+  // to bring the field into view; put it back so nothing stays shifted (also run on resize).
+  function unscroll() {
+    rotator.scrollTop = 0; rotator.scrollLeft = 0;
+    const se = document.scrollingElement;
+    if (se) { se.scrollTop = 0; se.scrollLeft = 0; }
+  }
+  document.addEventListener("focusout", () => requestAnimationFrame(unscroll));
+
+  // ---------- Settings: no-rotate mode, background photo, button transparency, language ----------
+  const SETTINGS_KEY = "dcg-mem-settings";
+  const BG_KEY = "dcg-mem-bg"; // background photo as a JPEG data URL, kept apart from the game save
+  let bgData = null;
+  const setOverlay = $("setOverlay");
+  function loadSettings() {
+    try { Object.assign(settings, JSON.parse(localStorage.getItem(SETTINGS_KEY) || "{}")); } catch {}
+    try { bgData = localStorage.getItem(BG_KEY); } catch {}
+  }
+  function saveSettings() { try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings)); } catch {} }
+  function applySettings() {
+    rotator.classList.toggle("norot", !!settings.noRotate);
+    rotator.style.backgroundImage = bgData ? `url("${bgData}")` : "";
+    rotator.style.setProperty("--bg-dim", bgData ? String(settings.bgDim / 100) : "0");
+    rotator.style.setProperty("--ba", bgData ? String(1 - settings.btnClear / 100) : "1");
+    applyFlip();
+    applyLang();
+  }
+  const segValue = (key) => (key === "noRotate" ? (settings.noRotate ? "1" : "0") : String(settings[key]));
+  function renderSettings() {
+    setOverlay.querySelectorAll(".seg").forEach((seg) => {
+      const key = seg.dataset.set;
+      const cur = segValue(key);
+      seg.querySelectorAll("button").forEach((b) => {
+        b.classList.toggle("on", b.dataset.v === cur);
+        b.disabled = (key === "bgDim" || key === "btnClear") && !bgData; // only matter with a photo
+      });
+    });
+    $("bgClear").disabled = !bgData;
+    $("bgThumb").style.backgroundImage = bgData ? `url("${bgData}")` : "";
+  }
+  setOverlay.querySelectorAll(".seg").forEach((seg) => {
+    seg.addEventListener("click", (e) => {
+      const b = e.target.closest("button");
+      if (!b || b.disabled) return;
+      const key = seg.dataset.set;
+      const v = b.dataset.v;
+      settings[key] = key === "noRotate" ? v === "1" : key === "lang" ? v : Number(v);
+      saveSettings();
+      applySettings();
+      renderSettings();
+      if (key === "lang") renderRecords();
+      vibrate(6);
+      if (key === "noRotate") showToast(t(settings.noRotate ? "set.norotOn" : "set.norotOff"));
+    });
+  });
+  function loadImage(file) {
+    return new Promise((resolve, reject) => {
+      const url = URL.createObjectURL(file);
+      const img = new Image();
+      img.onload = () => { URL.revokeObjectURL(url); resolve(img); };
+      img.onerror = () => { URL.revokeObjectURL(url); reject(new Error("not an image")); };
+      img.src = url;
+    });
+  }
+  // Shrink the photo to a JPEG small enough for localStorage (about 5 MB); smaller sizes are tried if it doesn't fit.
+  async function setBackground(file) {
+    const img = await loadImage(file);
+    for (const [edge, quality] of [[1600, 0.85], [1280, 0.75], [960, 0.7]]) {
+      const k = Math.min(1, edge / Math.max(img.naturalWidth, img.naturalHeight));
+      const c = document.createElement("canvas");
+      c.width = Math.max(1, Math.round(img.naturalWidth * k));
+      c.height = Math.max(1, Math.round(img.naturalHeight * k));
+      c.getContext("2d").drawImage(img, 0, 0, c.width, c.height);
+      const data = c.toDataURL("image/jpeg", quality);
+      try { localStorage.setItem(BG_KEY, data); bgData = data; return; } catch {}
+    }
+    throw new Error("does not fit");
+  }
+  $("bgPick").addEventListener("click", () => $("bgFile").click());
+  $("bgFile").addEventListener("change", async (e) => {
+    const file = e.target.files && e.target.files[0];
+    e.target.value = "";
+    if (!file) return;
+    try {
+      await setBackground(file);
+      applySettings();
+      renderSettings();
+      showToast(t("set.bgSet"));
+    } catch { showToast(t("set.bgFail"), 2000); }
+  });
+  $("bgClear").addEventListener("click", () => {
+    try { localStorage.removeItem(BG_KEY); } catch {}
+    bgData = null;
+    applySettings();
+    renderSettings();
+    showToast(t("set.bgCleared"));
+  });
+  function openSettings() { renderSettings(); setOverlay.classList.add("open"); }
+  $("setClose").addEventListener("click", () => setOverlay.classList.remove("open"));
+  setOverlay.addEventListener("click", (e) => { if (e.target === setOverlay) setOverlay.classList.remove("open"); });
+  $("tpSettings").addEventListener("click", openSettings);
+
+  // ---------- Help tabs ----------
+  const helpTabBtns = document.querySelectorAll(".help-tab");
+  const helpPanes = document.querySelectorAll(".help-pane");
+  helpTabBtns.forEach((tab) => {
+    tab.addEventListener("click", () => {
+      helpTabBtns.forEach(t => t.classList.remove("active"));
+      helpPanes.forEach(p => p.classList.remove("active"));
+      tab.classList.add("active");
+      const pane = document.querySelector(`.help-pane[data-help="${tab.dataset.help}"]`);
+      if (pane) pane.classList.add("active");
+    });
+  });
+
+  document.addEventListener("gesturestart", (e) => e.preventDefault(), { passive: false });
+  /* Double-tap-to-zoom is already disabled via viewport user-scalable=no +
+     touch-action: manipulation. A manual touchend preventDefault() here would
+     swallow the compat click on any second tap within the window, dropping
+     fast consecutive presses (± buttons, END TURN, UNDO) during real play —
+     removed for that reason. */
+
+  $("appInfo").textContent = `${APP.name} v${APP.version} · ${APP.build}`;
+
+  // ---------- Browser only: fullscreen by default, installable web app (PWA) ----------
+  // A page may enter fullscreen only from a tap, so on a phone every tap outside fullscreen asks for it
+  // (the first tap, and again after the player leaves it). Desktop windows and the installed app
+  // (already fullscreen from its manifest) are left alone.
+  (() => {
+    const installed = matchMedia("(display-mode: fullscreen), (display-mode: standalone)").matches;
+    if (installed || !matchMedia("(pointer: coarse)").matches) return;
+    document.addEventListener("pointerup", () => {
+      if (document.fullscreenElement || document.webkitFullscreenElement) return;
+      const el = document.documentElement;
+      const req = el.requestFullscreen || el.webkitRequestFullscreen;
+      if (!req) return;
+      try { const p = req.call(el, { navigationUI: "hide" }); if (p && p.catch) p.catch(() => {}); } catch {}
+    }, { passive: true });
+  })();
+  // Install as an app: only on the real website (https, top window), not in the APK, an artifact or a local file.
+  if (location.protocol === "https:" && window.top === window && !window.Capacitor) {
+    [["manifest", "manifest.webmanifest"], ["icon", "pwa/icon-192.png"], ["apple-touch-icon", "pwa/apple-touch-icon.png"]].forEach(([rel, href]) => {
+      const link = document.createElement("link");
+      link.rel = rel; link.href = href;
+      document.head.appendChild(link);
+    });
+    if ("serviceWorker" in navigator) addEventListener("load", () => { navigator.serviceWorker.register("sw.js").catch(() => {}); });
+  }
+
+  // ---------- Initial ----------
+  loadSettings();
+  loadRecords();
+  applySettings();
+  const restored = loadState();
+  if (restored && state.firstPlayer != null) {
+    // Archive previous game, then start fresh (hold its log tab to continue it)
+    archiveCurrent();
+    state.memory = 0;
+    state.firstPlayer = null;
+    state.tamer1 = false;
+    state.tamer2 = false;
+    state.flipped = false;
+    state.logView = "current";
+    saveState();
+  }
+  refreshTamerButtons();
+  updateUndoButton();
+  render(false);
+  openTurnPicker();
+  requestWakeLock();
+</script>
+

@@ -18,6 +18,8 @@
 
     <style name="AppTheme.NoActionBarLaunch" parent="Theme.SplashScreen">
         <item name="android:background">@drawable/splash</item>
+        <!-- Android 12+ system splash: app icon on the app's dark background (not white). -->
+        <item name="windowSplashScreenBackground">#0A0E14</item>
         <!-- The app renders CSS-rotated (landscape look inside a portrait-locked
              Activity), so a camera cutout can land on what CSS treats as a long
              edge. shortEdges lets content draw under it; the HTML's own

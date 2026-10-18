@@ -24,3 +24,8 @@ memorychecker-app/android/keystore.properties
 memorychecker-app/android/release.keystore
 memorychecker-app/android/*.jks
 memorychecker-app/android/*.keystore
+
+# Google Play release folder (AAB, versioned APKs, signing-key backup, store art) - local only
+memorychecker-app/release/
+# Separate project with its own repository (ChwiDragon/LumenCalculator)
+lumencondensor/

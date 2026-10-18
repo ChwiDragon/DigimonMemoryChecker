@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <meta charset="utf-8">
-<title>디지몬 메모리 체커</title>
+<title>DigiMemory Checker</title>
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <meta name="theme-color" content="#0a0e14">
 <meta name="mobile-web-app-capable" content="yes">
@@ -23,6 +23,11 @@
     --minus-glow: rgba(239, 68, 68, 0.5);
     --amber: #f59e0b;
     --amber-deep: #b45309;
+    /* Same colors as --surface / --surface-2, as RGB triplets so button fills can take
+       the button-transparency setting (--ba, 1 = opaque; only below 1 with a background photo). */
+    --surface-rgb: 20 26 36;
+    --surface-2-rgb: 28 36 49;
+    --ba: 1;
     --font-display: "Noto Sans KR", "Apple SD Gothic Neo", "Malgun Gothic", ui-sans-serif, system-ui, sans-serif;
     --font-ui: "Noto Sans KR", "Apple SD Gothic Neo", "Malgun Gothic", ui-sans-serif, system-ui, -apple-system, sans-serif;
   }
@@ -48,6 +53,26 @@
     transform-origin: 0 0;
     transform: rotate(90deg);
     overflow: hidden;
+    /* Background photo (SETTINGS) is set inline as background-image; cover keeps the landscape layout filled. */
+    background: var(--bg) center / cover no-repeat;
+  }
+  /* "배경 어둡게" scrim between the photo and the game screen */
+  .rotator::before {
+    content: "";
+    position: absolute; inset: 0;
+    background: rgb(0 0 0 / var(--bg-dim, 0));
+    pointer-events: none;
+  }
+
+  /* No-rotate mode (SETTINGS): one reader beside the phone, so P2's band and
+     first-turn button are upright too and the strip never flips (applyFlip). */
+  .rotator.norot .band-top { transform: none; }
+  .rotator.norot .tp-side.p2 { transform: none; }
+  .rotator.norot .band-top.active-first {
+    background: linear-gradient(to top, rgba(59,130,246,0.06), rgba(59,130,246,0.22));
+  }
+  .rotator.norot .band-top.active-second {
+    background: linear-gradient(to top, rgba(239,68,68,0.06), rgba(239,68,68,0.22));
   }
 
   .root {
@@ -88,7 +113,7 @@
     align-items: center; justify-content: center;
     padding: 6px 12px;
     border-radius: 10px;
-    background: var(--surface-2);
+    background: rgb(var(--surface-2-rgb) / var(--ba));
     border: 1px solid var(--border);
     font-family: var(--font-display);
     font-weight: 700;
@@ -105,7 +130,7 @@
 
   .util-btn {
     position: relative;
-    background: var(--surface);
+    background: rgb(var(--surface-rgb) / var(--ba));
     border: 1px solid var(--border);
     border-radius: 12px;
     padding: 6px 12px;
@@ -124,7 +149,7 @@
   }
   .util-btn.holdable span { font-size: 0.95rem; }
   .util-btn > * { position: relative; z-index: 1; }
-  .util-btn:active { background: var(--surface-2); }
+  .util-btn:active { background: rgb(var(--surface-2-rgb) / var(--ba)); }
 
   .util-btn .hold-fill {
     position: absolute; inset: 0;
@@ -195,7 +220,7 @@
     justify-self: center; align-self: center;
     height: 100%; aspect-ratio: 1;
     border-radius: 50%;
-    background: var(--surface-2);
+    background: rgb(var(--surface-2-rgb) / var(--ba));
     border: 1px solid var(--border);
     /* no transition — instant for APK responsiveness */
   }
@@ -247,14 +272,14 @@
   .delta:active { filter: brightness(1.2); }
   .delta + .delta { border-left: 1px solid rgba(255,255,255,0.07); }
 
-  .plus-4 { background: linear-gradient(135deg, #1e40af, #1e3a8a); }
-  .plus-3 { background: linear-gradient(135deg, #1d4ed8, #1e40af); }
-  .plus-2 { background: linear-gradient(135deg, #2563eb, #1d4ed8); }
-  .plus-1 { background: linear-gradient(135deg, #3b82f6, #2563eb); }
-  .minus-1 { background: linear-gradient(135deg, #ef4444, #dc2626); }
-  .minus-2 { background: linear-gradient(135deg, #dc2626, #b91c1c); }
-  .minus-3 { background: linear-gradient(135deg, #b91c1c, #991b1b); }
-  .minus-4 { background: linear-gradient(135deg, #991b1b, #7f1d1d); }
+  .plus-4 { background: linear-gradient(135deg, rgb(30 64 175 / var(--ba)), rgb(30 58 138 / var(--ba))); }
+  .plus-3 { background: linear-gradient(135deg, rgb(29 78 216 / var(--ba)), rgb(30 64 175 / var(--ba))); }
+  .plus-2 { background: linear-gradient(135deg, rgb(37 99 235 / var(--ba)), rgb(29 78 216 / var(--ba))); }
+  .plus-1 { background: linear-gradient(135deg, rgb(59 130 246 / var(--ba)), rgb(37 99 235 / var(--ba))); }
+  .minus-1 { background: linear-gradient(135deg, rgb(239 68 68 / var(--ba)), rgb(220 38 38 / var(--ba))); }
+  .minus-2 { background: linear-gradient(135deg, rgb(220 38 38 / var(--ba)), rgb(185 28 28 / var(--ba))); }
+  .minus-3 { background: linear-gradient(135deg, rgb(185 28 28 / var(--ba)), rgb(153 27 27 / var(--ba))); }
+  .minus-4 { background: linear-gradient(135deg, rgb(153 27 27 / var(--ba)), rgb(127 29 29 / var(--ba))); }
 
   /* ---------- Center cell ---------- */
   .mem-cell {
@@ -268,7 +293,7 @@
     flex: 1; min-height: 0; width: 100%;
     position: relative;
     border-radius: 18px;
-    background: radial-gradient(ellipse at center, var(--surface-2) 0%, var(--surface) 70%);
+    background: radial-gradient(ellipse at center, rgb(var(--surface-2-rgb) / var(--ba)) 0%, rgb(var(--surface-rgb) / var(--ba)) 70%);
     border: 2px solid var(--border);
     display: flex; align-items: center; justify-content: center;
     overflow: hidden;
@@ -308,7 +333,7 @@
     min-height: 36px;
     padding: 5px 4px;
     border-radius: 10px;
-    background: var(--surface-2);
+    background: rgb(var(--surface-2-rgb) / var(--ba));
     border: 1px solid var(--border);
     color: var(--amber);
     font-family: var(--font-display);
@@ -326,7 +351,7 @@
     min-height: 36px;
     padding: 4px;
     border-radius: 10px;
-    background: var(--surface-2);
+    background: rgb(var(--surface-2-rgb) / var(--ba));
     border: 1px solid var(--border);
     color: var(--text);
     font-family: var(--font-display);
@@ -367,7 +392,7 @@
     padding-right: calc(20px + max(env(safe-area-inset-bottom, 0px), 0px));
     padding-bottom: calc(20px + max(env(safe-area-inset-left, 0px), 0px));
     padding-left: calc(20px + max(env(safe-area-inset-top, 0px), 0px));
-    z-index: 500;
+    z-index: 555; /* above the turn picker (550): LOG can be opened from it */
     opacity: 0; pointer-events: none;
     transition: opacity 0.2s ease;
   }
@@ -412,6 +437,9 @@
   .log-tabs::-webkit-scrollbar { height: 4px; }
   .log-tabs::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
   .log-tab {
+    position: relative;
+    overflow: hidden;
+    touch-action: pan-x;
     padding: 5px 10px;
     background: var(--surface-2);
     border: 1px solid var(--border);
@@ -438,10 +466,21 @@
     color: #1a1200;
     border-color: var(--amber);
   }
+  .log-tab span { position: relative; z-index: 1; }
+  .log-tab .tab-fill {
+    position: absolute; inset: 0;
+    background: #fff;
+    opacity: 0.35;
+    transform: scaleX(0);
+    transform-origin: left center;
+    pointer-events: none;
+  }
   .log-list {
     overflow-y: auto;
     padding: 8px;
-    display: flex; flex-direction: column-reverse;
+    /* Rows are rendered newest-first in plain column order, so the list opens scrolled
+       to the newest entry (column-reverse opened at the oldest when it overflowed). */
+    display: flex; flex-direction: column;
     gap: 4px;
     min-height: 80px;
     flex: 1;
@@ -496,6 +535,7 @@
   .log-action .tag.reset { background: rgba(107, 118, 132, 0.25); color: var(--muted); }
   .log-action .tag.tamer { background: rgba(245, 158, 11, 0.15); color: #fcd34d; }
   .log-action .tag.start { background: rgba(59, 130, 246, 0.15); color: #93c5fd; }
+  .log-action .tag.load { background: rgba(245, 158, 11, 0.15); color: #fcd34d; }
   .log-presses {
     font-family: var(--font-display);
     font-size: 0.7rem;
@@ -571,7 +611,33 @@
     letter-spacing: 0.06em;
     padding: 4px 0;
     font-family: var(--font-display);
+    display: flex; align-items: center; justify-content: center;
+    position: relative;
   }
+  /* Pinned to the row's ends so "— FIRST TURN —" stays centered: LOG at the right end
+     (= bottom of the portrait phone), SETTINGS + RECORD at the left end (= top). */
+  .tp-tools {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    display: flex; gap: 6px;
+  }
+  .tp-tools.left { left: 0; }
+  .tp-tools.right { right: 0; }
+  .tp-log {
+    display: inline-flex; align-items: center; justify-content: center;
+    padding: 4px 12px;
+    min-height: 30px;
+    border-radius: 8px;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-family: var(--font-display);
+    font-size: 0.78rem;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+  }
+  .tp-log:active { background: var(--surface); }
 
   /* ---------- Help overlay ---------- */
   .info-overlay {
@@ -707,7 +773,23 @@
   .log-footer {
     padding: 8px 12px;
     border-top: 1px solid var(--border);
-    display: flex; justify-content: flex-end;
+    display: flex; align-items: center; justify-content: flex-end;
+    gap: 10px;
+  }
+  .log-hint {
+    flex: 1; min-width: 0;
+    font-size: 0.72rem;
+    color: var(--muted);
+    word-break: keep-all;
+  }
+  .info-footer {
+    padding: 8px 16px;
+    border-top: 1px solid var(--border);
+    font-size: 0.7rem;
+    color: var(--muted);
+    letter-spacing: 0.03em;
+    font-variant-numeric: tabular-nums;
+    text-align: right;
   }
   .log-delete-btn {
     position: relative;
@@ -734,6 +816,151 @@
     pointer-events: none;
     z-index: 0;
   }
+
+  .log-export-btn {
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 6px 14px;
+    font-family: var(--font-display);
+    font-size: 0.72rem;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    color: var(--text);
+    white-space: nowrap;
+  }
+  .log-export-btn:active { background: var(--surface); }
+
+  .icon-gear { width: 1.15em; height: 1.15em; display: block; }
+
+  /* ---------- Settings ---------- */
+  .set-row {
+    display: flex; align-items: center;
+    gap: 10px;
+    padding: 9px 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .set-row:last-child { border-bottom: 0; }
+  .set-label { flex: 1; min-width: 0; font-size: 0.85rem; font-weight: 600; }
+  .set-label small {
+    display: block;
+    margin-top: 2px;
+    font-size: 0.72rem; font-weight: 400;
+    color: var(--muted);
+    word-break: keep-all;
+  }
+  .seg { display: flex; gap: 4px; flex-shrink: 0; }
+  .seg button, .set-btn {
+    min-height: 32px;
+    padding: 4px 10px;
+    border-radius: 8px;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    font-family: var(--font-display);
+    font-size: 0.76rem;
+    font-weight: 600;
+    letter-spacing: 0.03em;
+    color: var(--muted);
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+  .set-btn { color: var(--text); }
+  .seg button.on { background: var(--amber); border-color: var(--amber); color: #1a1200; }
+  .seg button:disabled, .set-btn:disabled { opacity: 0.35; }
+  .bg-thumb {
+    width: 58px; height: 33px;
+    flex-shrink: 0;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    background: var(--surface-2) center / cover no-repeat;
+  }
+
+  /* ---------- Record (personal match memo) ---------- */
+  .rec-form {
+    display: flex; flex-wrap: wrap; align-items: center;
+    gap: 6px;
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--border);
+  }
+  .rec-input {
+    height: 34px;
+    padding: 0 10px;
+    border-radius: 8px;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-family: var(--font-ui);
+    font-size: 0.85rem;
+    -webkit-user-select: text; user-select: text;
+    color-scheme: dark;
+  }
+  .rec-input:focus { outline: none; border-color: var(--amber); }
+  .rec-date { width: 9.6em; flex-shrink: 0; }
+  .rec-deck { flex: 1; min-width: 8em; }
+  .rec-res {
+    min-width: 46px; height: 34px;
+    padding: 0 10px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    font-family: var(--font-display);
+    font-size: 0.9rem; font-weight: 700;
+    flex-shrink: 0;
+  }
+  .rec-res:active { filter: brightness(1.3); }
+  .rec-res.W { background: rgba(59,130,246,0.22); border-color: rgba(59,130,246,0.55); color: #93c5fd; }
+  .rec-res.D { background: rgba(107,118,132,0.25); color: var(--text); }
+  .rec-res.L { background: rgba(239,68,68,0.22); border-color: rgba(239,68,68,0.55); color: #fca5a5; }
+  .rec-decks {
+    display: flex; gap: 5px;
+    flex-shrink: 0;
+    overflow-x: auto;
+    padding: 7px 12px;
+    border-bottom: 1px solid var(--border);
+    scrollbar-width: thin;
+  }
+  .rec-decks:empty { display: none; }
+  .rec-chip {
+    padding: 4px 10px;
+    border-radius: 6px;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    font-size: 0.74rem; font-weight: 600;
+    color: var(--muted);
+    white-space: nowrap;
+  }
+  .rec-chip.on { color: #fcd34d; border-color: rgba(245, 158, 11, 0.55); }
+  .rec-list {
+    flex: 1;
+    min-height: 60px;
+    overflow-y: auto;
+    padding: 8px;
+    display: flex; flex-direction: column;
+    gap: 4px;
+    scrollbar-width: thin;
+  }
+  .rec-row {
+    display: grid;
+    grid-template-columns: 6.6em 1fr auto auto;
+    gap: 10px; align-items: center;
+    padding: 6px 8px 6px 12px;
+    border-radius: 8px;
+    background: var(--surface-2);
+    font-size: 0.85rem;
+  }
+  .rec-row .r-date { color: var(--muted); font-size: 0.74rem; font-variant-numeric: tabular-nums; }
+  .rec-row .r-deck { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .rec-row .r-res { padding: 2px 9px; border-radius: 5px; font-family: var(--font-display); font-weight: 700; font-size: 0.78rem; }
+  .rec-row .r-res.W { background: rgba(59,130,246,0.22); color: #93c5fd; }
+  .rec-row .r-res.D { background: rgba(107,118,132,0.25); color: var(--text); }
+  .rec-row .r-res.L { background: rgba(239,68,68,0.22); color: #fca5a5; }
+  .rec-row .r-del {
+    min-width: 30px; height: 28px;
+    padding: 0 6px;
+    border-radius: 6px;
+    color: var(--muted);
+    font-size: 0.8rem;
+  }
+  .rec-row .r-del.armed { background: rgba(239,68,68,0.22); color: #fca5a5; font-size: 0.72rem; font-weight: 700; }
 
   /* ---------- Toast ---------- */
   .toast {
@@ -767,11 +994,13 @@
     <div class="band-spacer"></div>
     <button class="util-btn tamer" data-player="2" aria-pressed="false">MEMORY TAMER</button>
     <button class="util-btn" data-action="log">LOG</button>
+    <button class="util-btn" data-action="record">RECORD</button>
     <button class="util-btn holdable" data-action="reset" aria-label="NEW GAME">
       <div class="hold-fill"></div>
       <span>NEW GAME</span>
     </button>
     <button class="util-btn" data-action="help" aria-label="도움말">?</button>
+    <button class="util-btn" data-action="settings" aria-label="설정"><svg class="icon-gear" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.6 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></button>
   </div>
 
   <!-- Circles (outside strip — never rotate, top mirrored for P2) -->
@@ -810,11 +1039,13 @@
     <div class="band-spacer"></div>
     <button class="util-btn tamer" data-player="1" aria-pressed="false">MEMORY TAMER</button>
     <button class="util-btn" data-action="log">LOG</button>
+    <button class="util-btn" data-action="record">RECORD</button>
     <button class="util-btn holdable" data-action="reset" aria-label="NEW GAME">
       <div class="hold-fill"></div>
       <span>NEW GAME</span>
     </button>
     <button class="util-btn" data-action="help" aria-label="도움말">?</button>
+    <button class="util-btn" data-action="settings" aria-label="설정"><svg class="icon-gear" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.6 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></button>
   </div>
 </div>
 
@@ -831,6 +1062,8 @@
       <div class="log-empty">아직 기록이 없습니다.</div>
     </div>
     <div class="log-footer">
+      <span class="log-hint">로그 이름을 1초 누르면 그 게임의 마지막 상황을 불러와요</span>
+      <button class="log-export-btn" id="logExport" aria-label="모든 로그를 텍스트 파일로 저장">TXT EXPORT</button>
       <button class="log-delete-btn holdable" id="logDeleteAll">
         <div class="hold-fill"></div>
         <span>ALL DELETE</span>
@@ -846,7 +1079,16 @@
       <div class="tp-text">GO FIRST</div>
     </button>
   </div>
-  <div class="tp-divider" id="tpTitle">— FIRST TURN —</div>
+  <div class="tp-divider">
+    <div class="tp-tools left">
+      <button class="tp-log" id="tpSettings" aria-label="설정"><svg class="icon-gear" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.6 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></button>
+      <button class="tp-log" id="tpRecord">RECORD</button>
+    </div>
+    <span id="tpTitle">— FIRST TURN —</span>
+    <div class="tp-tools right">
+      <button class="tp-log" id="tpLog">LOG</button>
+    </div>
+  </div>
   <div class="tp-side p1">
     <button class="tp-btn" data-player="1">
       <div class="tp-label">P1</div>
@@ -866,6 +1108,8 @@
       <button class="help-tab" data-help="turn">TURN</button>
       <button class="help-tab" data-help="undo">UNDO</button>
       <button class="help-tab" data-help="log">LOG</button>
+      <button class="help-tab" data-help="record">RECORD</button>
+      <button class="help-tab" data-help="settings">SETTING</button>
     </div>
     <div class="info-body">
       <div class="help-pane active" data-help="memory">
@@ -922,7 +1166,11 @@
             <li>선턴 결정 시점의 <b>날짜시간</b>으로 로그 이름 자동 생성</li>
             <li>초기화 시 현재 로그 자동 저장 (최근 <b>10개</b>)</li>
             <li>탭에서 이전 게임 로그 확인 가능</li>
-            <li><b>ALL DELETE</b> 1초 누르기로 모든 로그 삭제</li>
+            <li>지난 로그 이름을 <b>1초 꾹 누르기</b>로 그 게임의 마지막 상황(메모리·턴·MEMORY TAMER)을 불러와 이어하기</li>
+            <li>불러오면 진행 중이던 게임은 로그에 보관되고, UNDO로 불러온 게임의 기록도 되돌릴 수 있음</li>
+            <li>앱을 다시 열면 진행 중이던 게임은 로그에 보관됨 → 선턴 화면의 <b>LOG</b>에서 불러와 이어하기</li>
+            <li><b>TXT EXPORT</b>로 모든 로그(보관 + 진행 중)를 텍스트 파일로 저장</li>
+            <li><b>ALL DELETE</b> 1초 누르기로 모든 로그 삭제 (RECORD의 전적은 그대로)</li>
           </ul>
         </div>
         <div class="help-en">
@@ -930,9 +1178,101 @@
             <li>Log name is auto-generated from <b>date/time</b> at first-turn selection</li>
             <li>Current log is auto-saved on reset (up to <b>10</b> archives)</li>
             <li>View past game logs via tabs</li>
-            <li>Hold <b>ALL DELETE</b> for 1 second to clear all logs</li>
+            <li><b>Hold</b> a past log's name for 1 second to load that game's last state and continue</li>
+            <li>Loading archives the game in progress; UNDO also works on the loaded game's history</li>
+            <li>Reopening the app archives the game in progress — load it from <b>LOG</b> on the first-turn screen</li>
+            <li><b>TXT EXPORT</b> saves every log (archived + current) as a text file</li>
+            <li>Hold <b>ALL DELETE</b> for 1 second to clear all logs (RECORD entries are kept)</li>
           </ul>
         </div>
+      </div>
+      <div class="help-pane" data-help="record">
+        <div class="help-ko">
+          <ul>
+            <li><b>RECORD</b>: 날짜·덱 이름·승/무/패를 적어 두는 개인 전적 메모 (로그와 별개)</li>
+            <li>날짜와 덱 이름을 정하고 <b>승 / 무 / 패</b>를 누르면 바로 기록</li>
+            <li>아래 덱 이름 버튼을 누르면 그 덱으로 바로 입력, 그 덱의 전적만 따로 집계</li>
+            <li>✕를 두 번 누르면 그 기록 삭제 · <b>TXT EXPORT</b>로 전적을 텍스트 파일로 저장</li>
+            <li>선턴 화면에서도 <b>RECORD</b>를 열 수 있어요</li>
+          </ul>
+        </div>
+        <div class="help-en">
+          <ul>
+            <li><b>RECORD</b>: a personal match memo of date, deck and win/draw/loss (separate from logs)</li>
+            <li>Set the date and deck, then tap <b>승 / 무 / 패</b> (win / draw / loss) to add it</li>
+            <li>Tap a deck button to reuse that name; its own record is totaled too</li>
+            <li>Tap ✕ twice to delete an entry · <b>TXT EXPORT</b> saves the record as a text file</li>
+          </ul>
+        </div>
+      </div>
+      <div class="help-pane" data-help="settings">
+        <div class="help-ko">
+          <ul>
+            <li><b>무회전 모드</b>: END TURN 때 화면이 돌아가지 않고, 위쪽 P2 줄도 똑바로 보여요 (폰을 옆에 두고 쓸 때)</li>
+            <li><b>배경 사진</b>: 폰에 있는 사진을 골라 배경으로 (앱 안에만 저장)</li>
+            <li><b>배경 어둡게</b>, <b>버튼 투명도</b>: 배경 사진이 있을 때 보기 좋게 조절</li>
+          </ul>
+        </div>
+        <div class="help-en">
+          <ul>
+            <li><b>No-rotate mode</b>: the screen no longer turns on END TURN, and P2's row is upright too</li>
+            <li><b>Background photo</b>: pick a photo from your phone (kept inside the app only)</li>
+            <li><b>Dim background</b> and <b>button transparency</b> apply when a photo is set</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+    <div class="info-footer" id="appInfo"></div>
+  </div>
+</div>
+
+<div class="info-overlay" id="recOverlay" role="dialog" aria-modal="true" aria-labelledby="recTitle">
+  <div class="info-panel">
+    <div class="info-header">
+      <div class="info-title" id="recTitle">RECORD · 전적 메모</div>
+      <button class="info-close" id="recClose" aria-label="닫기">✕</button>
+    </div>
+    <div class="rec-form">
+      <input class="rec-input rec-date" id="recDate" type="date" aria-label="날짜">
+      <input class="rec-input rec-deck" id="recDeck" type="text" maxlength="40" placeholder="덱 이름" aria-label="덱 이름" autocomplete="off" enterkeyhint="done">
+      <button class="rec-res W" data-res="W">승</button>
+      <button class="rec-res D" data-res="D">무</button>
+      <button class="rec-res L" data-res="L">패</button>
+    </div>
+    <div class="rec-decks" id="recDecks"></div>
+    <div class="rec-list" id="recList"></div>
+    <div class="log-footer">
+      <span class="log-hint" id="recStats"></span>
+      <button class="log-export-btn" id="recExport" aria-label="전적을 텍스트 파일로 저장">TXT EXPORT</button>
+    </div>
+  </div>
+</div>
+
+<div class="info-overlay" id="setOverlay" role="dialog" aria-modal="true" aria-labelledby="setTitle">
+  <div class="info-panel">
+    <div class="info-header">
+      <div class="info-title" id="setTitle">SETTINGS</div>
+      <button class="info-close" id="setClose" aria-label="닫기">✕</button>
+    </div>
+    <div class="info-body">
+      <div class="set-row">
+        <div class="set-label">무회전 모드<small>END TURN 때 화면이 돌아가지 않아요. 폰을 한쪽에 두고 볼 때</small></div>
+        <div class="seg" data-set="noRotate"><button data-v="0">OFF</button><button data-v="1">ON</button></div>
+      </div>
+      <div class="set-row">
+        <div class="bg-thumb" id="bgThumb"></div>
+        <div class="set-label">배경 사진<small>폰에 있는 사진을 배경으로 써요</small></div>
+        <button class="set-btn" id="bgPick">사진 고르기</button>
+        <button class="set-btn" id="bgClear">지우기</button>
+        <input type="file" id="bgFile" accept="image/*" hidden>
+      </div>
+      <div class="set-row">
+        <div class="set-label">배경 어둡게<small>숫자와 글자가 잘 보이게</small></div>
+        <div class="seg" data-set="bgDim"><button data-v="0">0%</button><button data-v="25">25%</button><button data-v="50">50%</button><button data-v="75">75%</button></div>
+      </div>
+      <div class="set-row">
+        <div class="set-label">버튼 투명도<small>배경 사진이 있을 때만</small></div>
+        <div class="seg" data-set="btnClear"><button data-v="0">0%</button><button data-v="25">25%</button><button data-v="50">50%</button><button data-v="75">75%</button></div>
       </div>
     </div>
   </div>
@@ -942,9 +1282,12 @@
 </div><!-- /.rotator -->
 
 <script>
+  // version/build are bumped by rebuild.ps1 on every build — keep this line's format.
+  const APP = { name: "DigiMemory Checker", version: "1.2.0", build: "2026-10-18" };
   const MAX = 10, MIN = -10;
   const RESET_HOLD_MS = 1000;
   const DELETE_HOLD_MS = 1000;
+  const LOAD_HOLD_MS = 1000;
   const MERGE_MS = 1500;
 
   const state = {
@@ -958,6 +1301,8 @@
     logView: "current",
     logName: null,
   };
+  // SETTINGS panel, saved apart from the game (SETTINGS_KEY). bgDim / btnClear are percents.
+  const settings = { noRotate: false, bgDim: 25, btnClear: 0 };
 
   const $ = (id) => document.getElementById(id);
   const strip = $("strip");
@@ -1103,10 +1448,10 @@
   function renderLogTabs() {
     const view = state.logView;
     const currentName = state.logName || "NEW";
-    let html = `<button class="log-tab is-current ${view === "current" ? "active" : ""}" data-view="current">● ${currentName}</button>`;
+    let html = `<button class="log-tab is-current ${view === "current" ? "active" : ""}" data-view="current"><i class="tab-fill"></i><span>● ${currentName}</span></button>`;
     const arcs = state.logArchive;
     for (let i = arcs.length - 1; i >= 0; i--) {
-      html += `<button class="log-tab ${view === String(i) ? "active" : ""}" data-view="${i}">${arcs[i].name}</button>`;
+      html += `<button class="log-tab ${view === String(i) ? "active" : ""}" data-view="${i}"><i class="tab-fill"></i><span>${arcs[i].name}</span></button>`;
     }
     logTabs.innerHTML = html;
   }
@@ -1125,25 +1470,61 @@
       logList.innerHTML = '<div class="log-empty">아직 기록이 없습니다.</div>';
       return;
     }
-    const rows = new Array(entries.length);
-    for (let i = 0; i < entries.length; i++) rows[i] = entryHtml(entries[i]);
+    const n = entries.length;
+    const rows = new Array(n);
+    for (let i = 0; i < n; i++) rows[i] = entryHtml(entries[n - 1 - i]); // newest first
     logList.innerHTML = rows.join("");
+    logList.scrollTop = 0;
   }
 
   logTabs.addEventListener("click", (e) => {
     const tab = e.target.closest(".log-tab");
     if (!tab) return;
+    if (tabHoldFired) { tabHoldFired = false; return; }
     state.logView = tab.dataset.view;
     renderLog();
   });
 
+  // Hold a log tab for LOAD_HOLD_MS → load that game's last state (scrolling the tabs cancels).
+  let tabHoldFired = false;
+  (() => {
+    let raf = null, timer = null, start = 0, tab = null, sx = 0, sy = 0;
+    const paint = (pct) => { const f = tab && tab.querySelector(".tab-fill"); if (f) f.style.transform = `scaleX(${pct})`; };
+    const end = () => {
+      if (raf) cancelAnimationFrame(raf);
+      clearTimeout(timer);
+      raf = timer = null;
+      paint(0);
+      tab = null;
+    };
+    const tick = () => { paint(Math.min(1, (Date.now() - start) / LOAD_HOLD_MS)); raf = requestAnimationFrame(tick); };
+    logTabs.addEventListener("pointerdown", (e) => {
+      const t = e.target.closest(".log-tab");
+      if (!t || (e.pointerType === "mouse" && e.button !== 0)) return;
+      end();
+      tab = t;
+      tabHoldFired = false;
+      start = Date.now();
+      sx = e.clientX; sy = e.clientY;
+      raf = requestAnimationFrame(tick);
+      timer = setTimeout(() => {
+        const v = t.dataset.view;
+        end();
+        tabHoldFired = true; // ignore the click that follows the release
+        loadLog(v);
+      }, LOAD_HOLD_MS);
+    });
+    ["pointerup", "pointercancel", "pointerleave"].forEach((type) => logTabs.addEventListener(type, () => { if (tab) end(); }));
+    logTabs.addEventListener("pointermove", (e) => { if (tab && Math.hypot(e.clientX - sx, e.clientY - sy) > 10) end(); });
+    logTabs.addEventListener("contextmenu", (e) => e.preventDefault());
+  })();
+
   function turnClass(e) {
     const ps = e.preState;
     if (!ps || ps.firstPlayer == null) return "";
-    /* preState.flipped=false → firstPlayer's turn, flipped=true → other player's turn */
-    const isFirst = !ps.flipped;
-    const activePlayer = isFirst ? ps.firstPlayer : (ps.firstPlayer === "1" ? "2" : "1");
-    return activePlayer === "1" ? "turn-p1" : "turn-p2";
+    /* preState.flipped=false → P1's turn, flipped=true → P2's turn (as in refreshTurnIndicators;
+       chooseFirstPlayer sets flipped=true when P2 goes first) */
+    return ps.flipped ? "turn-p2" : "turn-p1";
   }
 
   function entryHtml(e) {
@@ -1167,6 +1548,11 @@
     }
     if (e.kind === "start") {
       return `<div class="log-row ${tc}"><div class="log-time">${time}</div><div class="log-action"><span class="tag start">${e.label}</span></div><div class="log-value">시작</div></div>`;
+    }
+    if (e.kind === "load") {
+      const valCls = e.value > 0 ? "pos" : e.value < 0 ? "neg" : "";
+      const valStr = (e.value > 0 ? "+" : "") + e.value;
+      return `<div class="log-row ${tc}"><div class="log-time">${time}</div><div class="log-action"><span class="tag load">${e.label}</span></div><div class="log-value ${valCls}">${valStr}</div></div>`;
     }
     if (e.kind === "reset") {
       return `<div class="log-row"><div class="log-time">${time}</div><div class="log-action"><span class="tag reset">초기화</span></div><div class="log-value">0</div></div>`;
@@ -1260,6 +1646,9 @@
     }
   }
 
+  // The strip turns to face the player whose turn it is, except in no-rotate mode.
+  function applyFlip() { strip.classList.toggle("flipped", state.flipped && !settings.noRotate); }
+
   // ---------- Actions ----------
   function applyDelta(d) {
     const next = clamp(state.memory + d);
@@ -1288,7 +1677,7 @@
     }
     state.memory = clamp(next);
     state.flipped = !state.flipped;
-    strip.classList.toggle("flipped", state.flipped);
+    applyFlip();
     turnFlash.classList.add("on");
     setTimeout(() => turnFlash.classList.remove("on"), 260);
     vibrate([15, 40, 15]);
@@ -1297,7 +1686,8 @@
     saveState();
   }
 
-  function resetAll() {
+  // Move the current log into the archive (keeps the latest 10).
+  function archiveCurrent() {
     if (state.log.length > 0) {
       state.logArchive.push({
         name: state.logName || fmtArchiveName(new Date()),
@@ -1306,14 +1696,64 @@
       });
       if (state.logArchive.length > 10) state.logArchive.shift();
     }
-    state.logName = null;
     state.log = [];
+    state.logName = null;
+  }
+
+  // The game state right after a log's last entry. Every entry stores the state before it
+  // (preState) plus its result, so this works for logs saved by older versions too.
+  function snapFromEntries(entries) {
+    const e = entries && entries[entries.length - 1];
+    if (!e || !e.preState) return null;
+    const s = { ...e.preState };
+    if (e.kind === "delta" || e.kind === "load") s.memory = e.value;
+    else if (e.kind === "turn") { s.memory = e.value; s.flipped = !s.flipped; }
+    else if (e.kind === "tamer") {
+      const m = /^P([12]) MEMORY TAMER (ON|OFF)$/.exec(e.label || "");
+      if (m) s["tamer" + m[1]] = m[2] === "ON";
+    }
+    return s.firstPlayer == null ? null : s;
+  }
+
+  // Hold a log tab → continue that game from its last state.
+  function loadLog(view) {
+    if (view === "current") {
+      showToast(state.firstPlayer != null ? "지금 진행 중인 게임입니다" : "불러올 상황이 없습니다");
+      return;
+    }
+    const k = Number(view);
+    const arc = state.logArchive[k];
+    const snap = arc && snapFromEntries(arc.entries);
+    if (!snap) { showToast("이 로그에는 불러올 상황이 없습니다"); return; }
+    state.logArchive.splice(k, 1);
+    archiveCurrent();
+    state.log = arc.entries;
+    state.logName = arc.name;
+    state.memory = clamp(snap.memory ?? 0);
+    state.flipped = !!snap.flipped;
+    state.firstPlayer = snap.firstPlayer;
+    state.tamer1 = !!snap.tamer1;
+    state.tamer2 = !!snap.tamer2;
+    applyFlip();
+    refreshTamerButtons();
+    state.logView = "current";
+    logOverlay.classList.remove("open");
+    closeTurnPicker();
+    logEvent({ kind: "load", label: "로그 불러오기", preState: snapshot(), value: state.memory });
+    render(false);
+    showToast(`${arc.name} 불러오기`);
+    vibrate(15);
+    requestWakeLock();
+  }
+
+  function resetAll() {
+    archiveCurrent();
     state.memory = 0;
     state.firstPlayer = null;
     state.tamer1 = false;
     state.tamer2 = false;
     refreshTamerButtons();
-    if (state.flipped) { state.flipped = false; strip.classList.remove("flipped"); }
+    state.flipped = false; applyFlip();
     state.logView = "current";
     render();
     updateUndoButton();
@@ -1346,7 +1786,7 @@
     state.tamer1 = ps.tamer1;
     state.tamer2 = ps.tamer2;
     if (ps.firstPlayer !== undefined) state.firstPlayer = ps.firstPlayer;
-    strip.classList.toggle("flipped", state.flipped);
+    applyFlip();
     refreshTamerButtons();
     render(false);
     saveState();
@@ -1364,7 +1804,7 @@
     const firstIsP2 = player === "2";
     state.firstPlayer = player;
     state.flipped = firstIsP2;
-    strip.classList.toggle("flipped", firstIsP2);
+    applyFlip();
     state.memory = 0;
     const pre = { memory: 0, flipped: firstIsP2, tamer1: state.tamer1, tamer2: state.tamer2, firstPlayer: player };
     logEvent({ kind: "start", label: `P${player} 선턴`, preState: pre, value: 0 });
@@ -1464,15 +1904,23 @@
     attachHold(btn, RESET_HOLD_MS, resetAll, (pct) => { fill.style.transform = `scaleX(${pct})`; });
   });
 
+  function openLog() { logOverlay.classList.add("open"); state.logView = "current"; renderLog(); }
+  // From the first-turn picker too, so a game archived on reopen can be loaded right away
+  $("tpLog").addEventListener("click", openLog);
+
   // ---------- Util button listeners ----------
   document.querySelectorAll(".util-btn").forEach((btn) => {
     const action = btn.dataset.action;
     if (btn.classList.contains("tamer")) {
       btn.addEventListener("click", () => toggleTamer(btn.dataset.player));
     } else if (action === "log") {
-      btn.addEventListener("click", () => { logOverlay.classList.add("open"); state.logView = "current"; renderLog(); });
+      btn.addEventListener("click", openLog);
     } else if (action === "help") {
       btn.addEventListener("click", () => helpOverlay.classList.add("open"));
+    } else if (action === "record") {
+      btn.addEventListener("click", openRecord);
+    } else if (action === "settings") {
+      btn.addEventListener("click", openSettings);
     }
   });
 
@@ -1493,7 +1941,7 @@
     state.firstPlayer = null;
     state.tamer1 = false;
     state.tamer2 = false;
-    if (state.flipped) { state.flipped = false; strip.classList.remove("flipped"); }
+    state.flipped = false; applyFlip();
     refreshTamerButtons();
     render(false);
     updateUndoButton();
@@ -1505,6 +1953,274 @@
     openTurnPicker();
   }
   attachHold(logDeleteBtn, DELETE_HOLD_MS, deleteAllLogs, (pct) => { logDeleteFill.style.transform = `scaleX(${pct})`; });
+
+  // ---------- Text file export (logs, record) ----------
+  // APK: MainActivity's DigiNative.saveText opens Android's "save as" screen (no storage permission);
+  // the result comes back through window.onTextSaved. Browser: a normal download.
+  function stamp(d = new Date()) {
+    const p = (n) => String(n).padStart(2, "0");
+    return `${d.getFullYear()}${p(d.getMonth() + 1)}${p(d.getDate())}-${p(d.getHours())}${p(d.getMinutes())}`;
+  }
+  function fmtDate(d) {
+    const p = (n) => String(n).padStart(2, "0");
+    return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+  }
+  function saveTextFile(name, text) {
+    if (window.DigiNative && window.DigiNative.saveText) { window.DigiNative.saveText(name, text); return; }
+    try {
+      const url = URL.createObjectURL(new Blob([text], { type: "text/plain;charset=utf-8" }));
+      const a = document.createElement("a");
+      a.href = url; a.download = name;
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 5000);
+      showToast("파일로 저장했어요", 1800);
+    } catch { showToast("이 환경에서는 파일로 저장할 수 없어요", 2000); }
+  }
+  window.onTextSaved = (r) => {
+    showToast(r === "ok" ? "파일로 저장했어요" : r === "cancel" ? "저장을 취소했어요" : "저장하지 못했어요", 1800);
+  };
+
+  // One log row as text, same content as entryHtml.
+  function entryText(e) {
+    const sv = (v) => (v > 0 ? "+" : "") + v;
+    const tc = turnClass(e);
+    const who = tc === "turn-p1" ? "P1" : tc === "turn-p2" ? "P2" : "  ";
+    const head = `${fmtTime(e.time)}  ${who}  `;
+    if (e.kind === "delta") {
+      const net = e.presses.reduce((a, b) => a + b, 0);
+      const presses = e.presses.length > 1 ? ` (${e.presses.map(sv).join(" · ")})` : "";
+      return `${head}${sv(net)}${presses}  →  ${sv(e.value)}`;
+    }
+    if (e.kind === "turn" || e.kind === "load") return `${head}${e.label}  →  ${sv(e.value)}`;
+    if (e.kind === "start") return `${head}${e.label}  →  시작`;
+    if (e.kind === "reset") return `${head}초기화  →  0`;
+    if (e.kind === "tamer") return `${head}${e.label}`;
+    return "";
+  }
+  // Every game (archived oldest first, then the current one), rows newest first like the LOG screen.
+  function logsToText() {
+    const games = state.logArchive.map((a) => ({ name: a.name, note: `${fmtDate(a.endedAt)} 보관`, entries: a.entries }));
+    if (state.log.length) games.push({ name: state.logName || "NEW", note: "진행 중", entries: state.log });
+    const now = new Date();
+    const out = [`${APP.name} ${APP.version} · 로그 내보내기 ${fmtDate(now)} ${fmtTime(now)}`, `게임 ${games.length}개`, ""];
+    games.forEach((g) => {
+      out.push("=".repeat(48), `[${g.name}] ${g.note}`, "-".repeat(48));
+      g.entries.slice().reverse().forEach((e) => { const line = entryText(e); if (line) out.push(line); });
+      out.push("");
+    });
+    return out.join("\n");
+  }
+  $("logExport").addEventListener("click", () => {
+    if (!state.log.length && !state.logArchive.length) { showToast("내보낼 로그가 없어요"); return; }
+    saveTextFile(`digimemory-log-${stamp()}.txt`, logsToText());
+  });
+
+  // ---------- Record: personal match memo (date, deck, win/draw/loss), separate from the logs ----------
+  const RECORDS_KEY = "dcg-mem-records";
+  const RES_LABEL = { W: "승", D: "무", L: "패" };
+  let records = [];
+  const recOverlay = $("recOverlay");
+  const recDate = $("recDate");
+  const recDeck = $("recDeck");
+  const recDecks = $("recDecks");
+  const recList = $("recList");
+  function loadRecords() {
+    try { const r = JSON.parse(localStorage.getItem(RECORDS_KEY) || "[]"); if (Array.isArray(r)) records = r; } catch {}
+  }
+  function saveRecords() {
+    try { localStorage.setItem(RECORDS_KEY, JSON.stringify(records)); } catch { showToast("저장 공간이 부족해요", 2000); }
+  }
+  const escHtml = (t) => String(t).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+  // Newest first: by date, then by the order they were added.
+  const sortedRecords = () => records.slice().sort((a, b) => (a.date === b.date ? b.id - a.id : a.date < b.date ? 1 : -1));
+  function tally(list) {
+    const t = { W: 0, D: 0, L: 0 };
+    list.forEach((r) => { t[r.result]++; });
+    const n = list.length;
+    return `${n}전 ${t.W}승 ${t.D}무 ${t.L}패${n ? ` · 승률 ${Math.round((t.W / n) * 100)}%` : ""}`;
+  }
+  function recentDecks() {
+    const seen = [];
+    sortedRecords().forEach((r) => { if (r.deck && !seen.includes(r.deck)) seen.push(r.deck); });
+    return seen.slice(0, 12);
+  }
+  let recDelArmed = null, recDelTimer = 0;
+  function renderRecords() {
+    const deck = recDeck.value.trim();
+    recDecks.innerHTML = recentDecks().map((d) => `<button class="rec-chip${d === deck ? " on" : ""}" data-deck="${escHtml(d)}">${escHtml(d)}</button>`).join("");
+    const list = sortedRecords();
+    recList.innerHTML = list.length
+      ? list.map((r) => {
+          const armed = recDelArmed === r.id;
+          return `<div class="rec-row"><span class="r-date">${escHtml(r.date)}</span><span class="r-deck">${r.deck ? escHtml(r.deck) : "—"}</span><span class="r-res ${r.result}">${RES_LABEL[r.result]}</span><button class="r-del${armed ? " armed" : ""}" data-id="${r.id}" aria-label="삭제">${armed ? "삭제?" : "✕"}</button></div>`;
+        }).join("")
+      : '<div class="log-empty">아직 전적이 없습니다.<br>덱 이름을 적고 승 / 무 / 패를 누르세요.</div>';
+    const mine = deck ? records.filter((r) => r.deck === deck) : [];
+    $("recStats").textContent = `전체 ${tally(records)}` + (mine.length ? `  |  ${deck} ${tally(mine)}` : "");
+  }
+  function addRecord(result) {
+    const date = recDate.value || fmtDate(new Date());
+    const deck = recDeck.value.trim();
+    const id = records.reduce((m, r) => Math.max(m, r.id + 1), Date.now());
+    records.push({ id, date, deck, result });
+    saveRecords();
+    renderRecords();
+    vibrate(10);
+    showToast(`${date} · ${deck || "덱 이름 없음"} · ${RES_LABEL[result]}`);
+  }
+  function openRecord() {
+    recDate.value = fmtDate(new Date());
+    recDelArmed = null;
+    renderRecords();
+    recOverlay.classList.add("open");
+  }
+  function closeRecord() {
+    if (recOverlay.contains(document.activeElement)) document.activeElement.blur();
+    recOverlay.classList.remove("open");
+  }
+  recOverlay.querySelectorAll(".rec-res").forEach((b) => b.addEventListener("click", () => addRecord(b.dataset.res)));
+  recDecks.addEventListener("click", (e) => {
+    const c = e.target.closest(".rec-chip");
+    if (!c) return;
+    recDeck.value = c.dataset.deck;
+    renderRecords();
+  });
+  recDeck.addEventListener("input", renderRecords);
+  recDeck.addEventListener("keydown", (e) => { if (e.key === "Enter") recDeck.blur(); });
+  // ✕ arms the row ("삭제?"), a second tap within 2.5 s deletes it.
+  recList.addEventListener("click", (e) => {
+    const b = e.target.closest(".r-del");
+    if (!b) return;
+    const id = Number(b.dataset.id);
+    clearTimeout(recDelTimer);
+    if (recDelArmed === id) {
+      records = records.filter((r) => r.id !== id);
+      recDelArmed = null;
+      saveRecords();
+      showToast("기록을 지웠어요");
+      vibrate(8);
+    } else {
+      recDelArmed = id;
+      recDelTimer = setTimeout(() => { recDelArmed = null; renderRecords(); }, 2500);
+    }
+    renderRecords();
+  });
+  function recordsToText() {
+    const now = new Date();
+    const out = [`${APP.name} ${APP.version} · 전적 내보내기 ${fmtDate(now)} ${fmtTime(now)}`, `전체 ${tally(records)}`, "", "덱별"];
+    const decks = [...new Set(sortedRecords().map((r) => r.deck))];
+    decks.forEach((d) => out.push(`  ${d || "(덱 이름 없음)"}: ${tally(records.filter((r) => r.deck === d))}`));
+    out.push("", "=".repeat(40));
+    sortedRecords().forEach((r) => out.push(`${r.date}  ${RES_LABEL[r.result]}  ${r.deck || "-"}`));
+    return out.join("\n");
+  }
+  $("recExport").addEventListener("click", () => {
+    if (!records.length) { showToast("내보낼 전적이 없어요"); return; }
+    saveTextFile(`digimemory-record-${stamp()}.txt`, recordsToText());
+  });
+  $("recClose").addEventListener("click", closeRecord);
+  recOverlay.addEventListener("click", (e) => { if (e.target === recOverlay) closeRecord(); });
+  $("tpRecord").addEventListener("click", openRecord);
+
+  // Focusing the deck-name field (or the keyboard resizing the page) can scroll the rotated
+  // layout to bring the field into view; put it back so nothing stays shifted.
+  const rotator = document.querySelector(".rotator");
+  function unscroll() {
+    rotator.scrollTop = 0; rotator.scrollLeft = 0;
+    const se = document.scrollingElement;
+    if (se) { se.scrollTop = 0; se.scrollLeft = 0; }
+  }
+  document.addEventListener("focusout", () => requestAnimationFrame(unscroll));
+  window.addEventListener("resize", () => requestAnimationFrame(unscroll), { passive: true });
+
+  // ---------- Settings: no-rotate mode, background photo, button transparency ----------
+  const SETTINGS_KEY = "dcg-mem-settings";
+  const BG_KEY = "dcg-mem-bg"; // background photo as a JPEG data URL, kept apart from the game save
+  let bgData = null;
+  const setOverlay = $("setOverlay");
+  function loadSettings() {
+    try { Object.assign(settings, JSON.parse(localStorage.getItem(SETTINGS_KEY) || "{}")); } catch {}
+    try { bgData = localStorage.getItem(BG_KEY); } catch {}
+  }
+  function saveSettings() { try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings)); } catch {} }
+  function applySettings() {
+    rotator.classList.toggle("norot", !!settings.noRotate);
+    rotator.style.backgroundImage = bgData ? `url("${bgData}")` : "";
+    rotator.style.setProperty("--bg-dim", bgData ? String(settings.bgDim / 100) : "0");
+    rotator.style.setProperty("--ba", bgData ? String(1 - settings.btnClear / 100) : "1");
+    applyFlip();
+  }
+  function renderSettings() {
+    setOverlay.querySelectorAll(".seg").forEach((seg) => {
+      const key = seg.dataset.set;
+      const cur = key === "noRotate" ? (settings.noRotate ? "1" : "0") : String(settings[key]);
+      seg.querySelectorAll("button").forEach((b) => {
+        b.classList.toggle("on", b.dataset.v === cur);
+        b.disabled = key !== "noRotate" && !bgData; // dim / transparency only matter with a photo
+      });
+    });
+    $("bgClear").disabled = !bgData;
+    $("bgThumb").style.backgroundImage = bgData ? `url("${bgData}")` : "";
+  }
+  setOverlay.querySelectorAll(".seg").forEach((seg) => {
+    seg.addEventListener("click", (e) => {
+      const b = e.target.closest("button");
+      if (!b || b.disabled) return;
+      const key = seg.dataset.set;
+      settings[key] = key === "noRotate" ? b.dataset.v === "1" : Number(b.dataset.v);
+      saveSettings();
+      applySettings();
+      renderSettings();
+      vibrate(6);
+      if (key === "noRotate") showToast(settings.noRotate ? "무회전 모드 ON" : "무회전 모드 OFF");
+    });
+  });
+  function loadImage(file) {
+    return new Promise((resolve, reject) => {
+      const url = URL.createObjectURL(file);
+      const img = new Image();
+      img.onload = () => { URL.revokeObjectURL(url); resolve(img); };
+      img.onerror = () => { URL.revokeObjectURL(url); reject(new Error("not an image")); };
+      img.src = url;
+    });
+  }
+  // Shrink the photo to a JPEG small enough for localStorage (about 5 MB); smaller sizes are tried if it doesn't fit.
+  async function setBackground(file) {
+    const img = await loadImage(file);
+    for (const [edge, quality] of [[1600, 0.85], [1280, 0.75], [960, 0.7]]) {
+      const k = Math.min(1, edge / Math.max(img.naturalWidth, img.naturalHeight));
+      const c = document.createElement("canvas");
+      c.width = Math.max(1, Math.round(img.naturalWidth * k));
+      c.height = Math.max(1, Math.round(img.naturalHeight * k));
+      c.getContext("2d").drawImage(img, 0, 0, c.width, c.height);
+      const data = c.toDataURL("image/jpeg", quality);
+      try { localStorage.setItem(BG_KEY, data); bgData = data; return; } catch {}
+    }
+    throw new Error("does not fit");
+  }
+  $("bgPick").addEventListener("click", () => $("bgFile").click());
+  $("bgFile").addEventListener("change", async (e) => {
+    const file = e.target.files && e.target.files[0];
+    e.target.value = "";
+    if (!file) return;
+    try {
+      await setBackground(file);
+      applySettings();
+      renderSettings();
+      showToast("배경 사진을 바꿨어요");
+    } catch { showToast("이 사진은 배경으로 쓸 수 없어요", 2000); }
+  });
+  $("bgClear").addEventListener("click", () => {
+    try { localStorage.removeItem(BG_KEY); } catch {}
+    bgData = null;
+    applySettings();
+    renderSettings();
+    showToast("배경 사진을 지웠어요");
+  });
+  function openSettings() { renderSettings(); setOverlay.classList.add("open"); }
+  $("setClose").addEventListener("click", () => setOverlay.classList.remove("open"));
+  setOverlay.addEventListener("click", (e) => { if (e.target === setOverlay) setOverlay.classList.remove("open"); });
+  $("tpSettings").addEventListener("click", openSettings);
 
   // ---------- Help tabs ----------
   const helpTabBtns = document.querySelectorAll(".help-tab");
@@ -1527,20 +2243,16 @@
      removed for that reason. */
   document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") syncViewport(); }, { passive: true });
 
+  $("appInfo").textContent = `${APP.name} v${APP.version} · ${APP.build}`;
+
   // ---------- Initial ----------
+  loadSettings();
+  loadRecords();
+  applySettings();
   const restored = loadState();
   if (restored && state.firstPlayer != null) {
-    // Archive previous game, then start fresh
-    if (state.log.length > 0) {
-      state.logArchive.push({
-        name: state.logName || fmtArchiveName(new Date()),
-        entries: state.log.slice(),
-        endedAt: new Date(),
-      });
-      if (state.logArchive.length > 10) state.logArchive.shift();
-    }
-    state.logName = null;
-    state.log = [];
+    // Archive previous game, then start fresh (hold its log tab to continue it)
+    archiveCurrent();
     state.memory = 0;
     state.firstPlayer = null;
     state.tamer1 = false;
