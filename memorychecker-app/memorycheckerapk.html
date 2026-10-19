@@ -961,6 +961,28 @@
   .rec-bar .W { background: #3b82f6; }
   .rec-bar .D { background: #6b7684; }
   .rec-bar .L { background: #ef4444; }
+  /* Overall record, at the top of the MATCHES tab */
+  #recStats span { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  #recStats span:first-child { color: var(--text); font-weight: 600; }
+  .rec-total {
+    flex-shrink: 0;
+    display: grid; grid-template-columns: 1fr auto;
+    align-items: center; gap: 2px 12px;
+    padding: 10px 14px 4px;
+    border-radius: 10px;
+    background: var(--surface-2);
+    border: 1px solid rgba(245, 158, 11, 0.35);
+  }
+  .rec-total .t-label { font-size: 0.78rem; font-weight: 600; color: var(--amber); letter-spacing: 0.04em; }
+  .rec-total .t-wdl { font-size: 0.9rem; font-variant-numeric: tabular-nums; }
+  .rec-total .t-rate {
+    grid-row: 1 / 3; grid-column: 2;
+    font-family: var(--font-display); font-weight: 700;
+    font-size: 1.9rem; line-height: 1;
+    font-variant-numeric: tabular-nums;
+  }
+  .rec-total .t-rate small { font-size: 0.55em; margin-left: 1px; color: var(--muted); }
+  .rec-total .rec-bar { grid-column: 1 / -1; margin: 6px 0; height: 6px; border-radius: 3px; }
   .rec-sub { display: flex; flex-direction: column; gap: 2px; padding: 0 6px 8px; }
   .rec-sub[hidden] { display: none; }
   .rec-subrow {
@@ -972,6 +994,8 @@
     background: var(--surface);
     font-size: 0.8rem;
   }
+  .rec-subrow.round { grid-template-columns: 2.4em 1fr auto; padding-left: 8px; }
+  .rec-subrow .s-round { font-family: var(--font-display); font-weight: 700; font-size: 0.74rem; color: var(--amber); font-variant-numeric: tabular-nums; }
   .rec-subrow .s-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .rec-subrow .s-name i { font-style: normal; font-size: 0.72rem; color: var(--muted); margin: 0 5px; }
   .rec-subrow .s-wdl { font-size: 0.74rem; color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
@@ -1219,7 +1243,8 @@
             <li>덱 이름을 적고 <b>승 / 무 / 패</b>를 누르면 바로 기록. 내 덱은 그대로 남고 상대 덱은 비워져요</li>
             <li>내 덱 옆 <b>▾</b>: 최근 내 덱 이름 5개에서 골라 쓰기 (이름을 바꿔도 예전 이름이 남아요)</li>
             <li>지금 적힌 내 덱의 전적은 아래에 따로 집계</li>
-            <li>목록 위 <b>날짜별 / 덱별</b> 탭: 날짜·내 덱마다 전적과 승률 요약. 줄을 누르면 그날의 경기, 덱의 상대 덱별 전적이 펼쳐져요</li>
+            <li>목록 위 <b>날짜별 / 덱별</b> 탭: 날짜·내 덱마다 전적과 승률 요약. 줄을 누르면 그날의 경기(1R, 2R… 입력 순), 덱의 상대 덱별 전적(승률 높은 순)이 펼쳐져요</li>
+            <li>기록 탭 맨 위에 전체 승률 · <b>ALL DELETE</b> 1초 누르기로 모든 전적 삭제</li>
             <li>RECORD는 세로 화면으로 열려요 (폰을 세로로 들고 키보드로 입력)</li>
             <li>✕ 옆 <b>NEW GAME</b> 1초 누르기로 새 게임 시작 · ✕를 두 번 누르면 그 기록 삭제</li>
             <li><b>TXT EXPORT</b>로 전적을 텍스트 파일로 저장</li>
@@ -1231,7 +1256,8 @@
             <li><b>RECORD</b>: a personal match memo of date, your deck, the opponent's deck and win/draw/loss (separate from logs)</li>
             <li>Tap <b>승 / 무 / 패</b> (win / draw / loss) to add it; your deck stays, the opponent's deck is cleared</li>
             <li><b>▾</b> next to your deck: pick from your last 5 deck names</li>
-            <li><b>BY DATE / BY DECK</b> tabs above the list: totals and win rate per day and per deck; tap a row to see that day's matches or the deck against each opponent deck</li>
+            <li><b>BY DATE / BY DECK</b> tabs above the list: totals and win rate per day and per deck; tap a row to see that day's matches as rounds (1R, 2R…) or the deck against each opponent deck (best win rate first)</li>
+            <li>Overall win rate at the top of MATCHES · hold <b>ALL DELETE</b> for 1 second to delete every match</li>
             <li>RECORD opens upright (portrait) for typing · hold <b>NEW GAME</b> next to ✕ to start a new game</li>
             <li>Tap ✕ twice to delete an entry · <b>TXT EXPORT</b> saves the record as a text file</li>
           </ul>
@@ -1339,6 +1365,7 @@
     <div class="log-footer">
       <span class="log-hint" id="recStats"></span>
       <button class="log-export-btn" id="recExport" data-i18n-aria="rec.export" aria-label="전적을 텍스트 파일로 저장">TXT EXPORT</button>
+      <button class="log-delete-btn holdable" id="recDeleteAll" data-i18n-aria="rec.delAll" aria-label="ALL DELETE 1초 누르기: 모든 전적 삭제"><div class="hold-fill"></div><span>ALL DELETE</span></button>
     </div>
   </div>
   <div class="toast" id="recToast" role="status" aria-live="polite"></div>
@@ -2139,6 +2166,10 @@
       "rec.txtHead": "전적 내보내기",
       "rec.byDeck": "내 덱별",
       "rec.byDate": "날짜별",
+      "rec.total": "전체 승률",
+      "rec.delAll": "ALL DELETE 1초 누르기: 모든 전적 삭제",
+      "rec.deletedAll": "모든 전적을 지웠어요",
+      "rec.noDelete": "지울 전적이 없어요",
       "rec.vList": "기록", "rec.vDate": "날짜별", "rec.vDeck": "덱별",
       "file.ok": "파일로 저장했어요",
       "file.cancel": "저장을 취소했어요",
@@ -2186,6 +2217,10 @@
       "rec.txtHead": "Match record export",
       "rec.byDeck": "By my deck",
       "rec.byDate": "By date",
+      "rec.total": "Overall win rate",
+      "rec.delAll": "Hold ALL DELETE for 1 second: delete every match",
+      "rec.deletedAll": "All matches deleted",
+      "rec.noDelete": "No matches to delete",
       "rec.vList": "MATCHES", "rec.vDate": "BY DATE", "rec.vDeck": "BY DECK",
       "file.ok": "Saved as a file",
       "file.cancel": "Save canceled",
@@ -2271,39 +2306,41 @@
     const list = sortedRecords();
     if (!list.length) recList.innerHTML = `<div class="log-empty">${t("rec.empty")}</div>`;
     else if (recView === "list") {
-      recList.innerHTML = list.map((r) => {
+      const c = countRes(list);
+      recList.innerHTML = `<div class="rec-total"><span class="t-label">${t("rec.total")}</span><span class="t-rate">${c.rate}<small>%</small></span><span class="t-wdl">${wdl(c)}</span><div class="rec-bar">${resBar(c)}</div></div>` + list.map((r) => {
         const armed = recDelArmed === r.id;
         const decks = `${deckName(r.deck)}<i>vs</i>${deckName(r.opp)}`;
         return `<div class="rec-row"><span class="r-date">${escHtml(r.date)}</span><span class="r-deck">${decks}</span><span class="r-res ${r.result}">${t("rec.short." + r.result)}</span><button class="r-del${armed ? " armed" : ""}" data-id="${r.id}" aria-label="${t("rec.delAria")}">${armed ? t("rec.del") : "✕"}</button></div>`;
       }).join("");
     } else if (recView === "date") {
-      // newest day first; open a day to see its matches
+      // newest day first; open a day to see its matches as rounds, the first one entered on top (1R, 2R, ...)
       recList.innerHTML = groupBy(list, (r) => r.date).map(([date, rs]) =>
-        sumGroup(date, escHtml(date), rs, rs.map((r) =>
-          `<div class="rec-subrow"><span class="s-name">${deckName(r.deck)}<i>vs</i>${deckName(r.opp)}</span><span></span><span class="r-res ${r.result}">${t("rec.short." + r.result)}</span></div>`).join(""))).join("");
+        sumGroup(date, escHtml(date), rs, rs.slice().reverse().map((r, i) =>
+          `<div class="rec-subrow round"><span class="s-round">${i + 1}R</span><span class="s-name">${deckName(r.deck)}<i>vs</i>${deckName(r.opp)}</span><span class="r-res ${r.result}">${t("rec.short." + r.result)}</span></div>`).join(""))).join("");
     } else {
-      // most played deck first; open a deck to see it against each opponent deck
+      // most played deck first; open a deck to see it against each opponent deck, best win rate first
       const groups = groupBy(list, (r) => r.deck).sort((a, b) => b[1].length - a[1].length);
       recList.innerHTML = groups.map(([deck, rs]) =>
         sumGroup("d:" + deck, deck ? escHtml(deck) : escHtml(t("rec.noDeck")), rs,
-          groupBy(rs, (r) => r.opp).sort((a, b) => b[1].length - a[1].length).map(([opp, os]) => {
-            const c = countRes(os);
+          groupBy(rs, (r) => r.opp).map(([opp, os]) => [opp, countRes(os)]).sort((a, b) => b[1].rate - a[1].rate || b[1].n - a[1].n).map(([opp, c]) => {
             return `<div class="rec-subrow"><span class="s-name"><i>vs</i>${deckName(opp)}</span><span class="s-wdl">${wdl(c)}</span><span class="s-rate">${c.rate}%</span></div>`;
           }).join(""))).join("");
     }
     renderRecStats();
   }
+  // win / draw / loss share bar
+  const resBar = (c) => ["W", "D", "L"].map((k) => (c[k] ? `<span class="${k}" style="flex:${c[k]}"></span>` : "")).join("");
   // One summary row (name, W/D/L, win rate, share bar) with its breakdown underneath.
   function sumGroup(key, nameHtml, rs, subHtml) {
     const c = countRes(rs);
     const open = recOpen.has(key);
-    const bar = ["W", "D", "L"].map((k) => (c[k] ? `<span class="${k}" style="flex:${c[k]}"></span>` : "")).join("");
-    return `<div class="rec-grp"><button class="rec-sum" data-key="${escHtml(key)}" aria-expanded="${open}"><span class="s-name">${nameHtml}</span><span class="s-wdl">${wdl(c)}</span><span class="s-rate">${c.rate}%</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></button><div class="rec-bar">${bar}</div><div class="rec-sub"${open ? "" : " hidden"}>${subHtml}</div></div>`;
+    return `<div class="rec-grp"><button class="rec-sum" data-key="${escHtml(key)}" aria-expanded="${open}"><span class="s-name">${nameHtml}</span><span class="s-wdl">${wdl(c)}</span><span class="s-rate">${c.rate}%</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></button><div class="rec-bar">${resBar(c)}</div><div class="rec-sub"${open ? "" : " hidden"}>${subHtml}</div></div>`;
   }
   function renderRecStats() {
     const deck = recDeck.value.trim();
     const mine = deck ? records.filter((r) => r.deck === deck) : [];
-    $("recStats").textContent = `${t("rec.all")} ${tally(records)}` + (mine.length ? `  |  ${deck} ${tally(mine)}` : "");
+    const c = countRes(mine);
+    $("recStats").innerHTML = mine.length ? `<span>${escHtml(deck)}</span><span>${settings.lang === "en" ? `${c.W}W ${c.D}D ${c.L}L` : `${c.W}승 ${c.D}무 ${c.L}패`} · ${c.rate}%</span>` : "";
   }
   function renderDeckMenu() {
     const deck = recDeck.value.trim();
@@ -2407,6 +2444,19 @@
     if (!records.length) { showToast(t("rec.noExport")); return; }
     saveTextFile(`digimemory-record-${stamp()}.txt`, recordsToText());
   });
+  // ALL DELETE inside RECORD: hold 1 s; deletes every match (recent deck names are kept)
+  const recDeleteBtn = $("recDeleteAll");
+  const recDeleteFill = recDeleteBtn.querySelector(".hold-fill");
+  attachHold(recDeleteBtn, DELETE_HOLD_MS, () => {
+    if (!records.length) { showToast(t("rec.noDelete")); return; }
+    records = [];
+    recOpen.clear();
+    recDelArmed = null;
+    saveRecords();
+    renderRecords();
+    showToast(t("rec.deletedAll"));
+    vibrate(15);
+  }, (pct) => { recDeleteFill.style.transform = `scaleX(${pct})`; });
   // NEW GAME inside RECORD: hold like the band's NEW GAME, then back to the first-turn screen
   const recNewGame = $("recNewGame");
   const recNewGameFill = recNewGame.querySelector(".hold-fill");
