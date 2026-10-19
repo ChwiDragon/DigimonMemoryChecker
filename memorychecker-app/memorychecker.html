@@ -913,12 +913,16 @@
     font-size: 0.85rem;
   }
   .rec-row .r-date { color: var(--muted); font-size: 0.74rem; font-variant-numeric: tabular-nums; }
-  .rec-row .r-deck { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .rec-row .r-deck i { font-style: normal; font-size: 0.72rem; color: var(--muted); margin: 0 5px; }
-  .rec-row .r-res { padding: 2px 9px; border-radius: 5px; font-family: var(--font-display); font-weight: 700; font-size: 0.78rem; }
-  .rec-row .r-res.W { background: rgba(59,130,246,0.22); color: #93c5fd; }
-  .rec-row .r-res.N { background: rgba(107,118,132,0.25); color: var(--muted); }
-  .rec-row .r-res.L { background: rgba(239,68,68,0.22); color: #fca5a5; }
+  /* Deck names ("my deck vs opponent") are cut with … when long */
+  .r-deck, .s-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .r-deck i, .s-name i { font-style: normal; font-size: 0.72rem; color: var(--muted); margin: 0 5px; }
+  /* Result badge (W / L / N/A): match list and a day's rounds */
+  .r-res { justify-self: end; padding: 2px 9px; border-radius: 5px; font-family: var(--font-display); font-weight: 700; font-size: 0.78rem; }
+  .r-res.W { background: rgba(59,130,246,0.22); color: #93c5fd; }
+  .r-res.L { background: rgba(239,68,68,0.22); color: #fca5a5; }
+  .r-res.N { background: rgba(107,118,132,0.25); color: var(--muted); }
+  .s-wdl { font-size: 0.78rem; color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .s-rate { text-align: right; font-variant-numeric: tabular-nums; }
   .rec-row .r-del {
     min-width: 30px; height: 28px;
     padding: 0 6px;
@@ -952,9 +956,8 @@
     font-size: 0.9rem;
     color: var(--text);
   }
-  .rec-sum .s-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
-  .rec-sum .s-wdl { font-size: 0.78rem; color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
-  .rec-sum .s-rate { text-align: right; font-family: var(--font-display); font-weight: 700; font-size: 0.85rem; font-variant-numeric: tabular-nums; }
+  .rec-sum .s-name { font-weight: 600; }
+  .rec-sum .s-rate { font-family: var(--font-display); font-weight: 700; font-size: 0.85rem; }
   .rec-sum svg { width: 14px; height: 14px; color: var(--muted); transition: transform 0.15s; }
   .rec-sum[aria-expanded="true"] svg { transform: rotate(180deg); }
   /* win / loss share of the games */
@@ -994,14 +997,9 @@
   }
   .rec-subrow.round { grid-template-columns: 2.4em 1fr auto; padding-left: 8px; }
   .rec-subrow .s-round { font-family: var(--font-display); font-weight: 700; font-size: 0.74rem; color: var(--amber); font-variant-numeric: tabular-nums; }
-  .rec-subrow .s-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .rec-subrow .s-name i { font-style: normal; font-size: 0.72rem; color: var(--muted); margin: 0 5px; }
-  .rec-subrow .s-wdl { font-size: 0.74rem; color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
-  .rec-subrow .s-rate { text-align: right; font-size: 0.78rem; font-variant-numeric: tabular-nums; }
-  .rec-subrow .r-res { justify-self: end; padding: 1px 8px; border-radius: 5px; font-family: var(--font-display); font-weight: 700; font-size: 0.74rem; }
-  .rec-subrow .r-res.W { background: rgba(59,130,246,0.22); color: #93c5fd; }
-  .rec-subrow .r-res.N { background: rgba(107,118,132,0.25); color: var(--muted); }
-  .rec-subrow .r-res.L { background: rgba(239,68,68,0.22); color: #fca5a5; }
+  .rec-subrow .s-wdl { font-size: 0.74rem; }
+  .rec-subrow .s-rate { font-size: 0.78rem; }
+  .rec-subrow .r-res { padding: 1px 8px; font-size: 0.74rem; }
 
   /* ---------- Toast ---------- */
   .toast {
@@ -1387,7 +1385,7 @@
 
 <script>
   // version/build are bumped by rebuild.ps1 on every build — keep this line's format.
-  const APP = { name: "DigiMemory Checker", version: "1.2.2", build: "2026-10-19" };
+  const APP = { name: "DigiMemory Checker", version: "1.2.3", build: "2026-10-19" };
   const MAX = 10, MIN = -10;
   const RESET_HOLD_MS = 1000;
   const DELETE_HOLD_MS = 1000;
@@ -1422,6 +1420,8 @@
   const turnPicker = $("turnPicker");
   const helpOverlay = $("helpOverlay");
   const toast = $("toast");
+  const recOverlay = $("recOverlay");
+  const recToast = $("recToast");
   const turnFlash = $("turnFlash");
   const rotator = document.querySelector(".rotator");
   const bandTop = document.querySelector(".band-top");
@@ -1451,11 +1451,21 @@
   const stamp = (d = new Date()) => `${d.getFullYear()}${p2(d.getMonth() + 1)}${p2(d.getDate())}-${p2(d.getHours())}${p2(d.getMinutes())}`;
   function showToast(msg, ms = 1200) {
     // RECORD is drawn outside the rotated screen, so it has its own toast
-    const el = $("recOverlay").classList.contains("open") ? $("recToast") : toast;
+    const el = recOverlay.classList.contains("open") ? recToast : toast;
     el.textContent = msg;
     el.classList.add("show");
     clearTimeout(showToast._t);
     showToast._t = setTimeout(() => el.classList.remove("show"), ms);
+  }
+  const signed = (v) => (v > 0 ? "+" : "") + v;
+  // Back to "no game yet": memory 0, no first player, tamers off, strip unturned.
+  function clearGame() {
+    state.memory = 0;
+    state.firstPlayer = null;
+    state.tamer1 = false;
+    state.tamer2 = false;
+    state.flipped = false;
+    state.logView = "current";
   }
   function snapshot() {
     return { memory: state.memory, flipped: state.flipped, tamer1: state.tamer1, tamer2: state.tamer2, firstPlayer: state.firstPlayer };
@@ -1647,37 +1657,21 @@
   }
 
   function entryHtml(e) {
-    const time = fmtTime(e.time);
+    const row = (tc, action, value, valCls = "") =>
+      `<div class="log-row ${tc}"><div class="log-time">${fmtTime(e.time)}</div><div class="log-action">${action}</div><div class="log-value ${valCls}">${value}</div></div>`;
     const tc = turnClass(e);
-    if (e.kind === "delta") {
-      const net = e.presses.reduce((a, b) => a + b, 0);
-      const tagClass = net > 0 ? "plus" : net < 0 ? "minus" : "zero";
-      const netStr = (net > 0 ? "+" : "") + net;
-      const pressesStr = e.presses.length > 1
-        ? `<span class="log-presses">${e.presses.map(p => (p > 0 ? "+" : "") + p).join(" · ")}</span>`
-        : "";
-      const valCls = e.value > 0 ? "pos" : e.value < 0 ? "neg" : "";
-      const valStr = (e.value > 0 ? "+" : "") + e.value;
-      return `<div class="log-row ${tc}"><div class="log-time">${time}</div><div class="log-action"><span class="tag ${tagClass}">${netStr}</span>${pressesStr}</div><div class="log-value ${valCls}">${valStr}</div></div>`;
-    }
-    if (e.kind === "turn") {
-      const valCls = e.value > 0 ? "pos" : e.value < 0 ? "neg" : "";
-      const valStr = (e.value > 0 ? "+" : "") + e.value;
-      return `<div class="log-row ${tc}"><div class="log-time">${time}</div><div class="log-action"><span class="tag turn">${e.label}</span></div><div class="log-value ${valCls}">${valStr}</div></div>`;
-    }
-    if (e.kind === "start") {
-      return `<div class="log-row ${tc}"><div class="log-time">${time}</div><div class="log-action"><span class="tag start">${e.label}</span></div><div class="log-value">시작</div></div>`;
-    }
-    if (e.kind === "load") {
-      const valCls = e.value > 0 ? "pos" : e.value < 0 ? "neg" : "";
-      const valStr = (e.value > 0 ? "+" : "") + e.value;
-      return `<div class="log-row ${tc}"><div class="log-time">${time}</div><div class="log-action"><span class="tag load">${e.label}</span></div><div class="log-value ${valCls}">${valStr}</div></div>`;
-    }
-    if (e.kind === "reset") {
-      return `<div class="log-row"><div class="log-time">${time}</div><div class="log-action"><span class="tag reset">초기화</span></div><div class="log-value">0</div></div>`;
-    }
-    if (e.kind === "tamer") {
-      return `<div class="log-row ${tc}"><div class="log-time">${time}</div><div class="log-action"><span class="tag tamer">${e.label}</span></div><div class="log-value">—</div></div>`;
+    const valCls = e.value > 0 ? "pos" : e.value < 0 ? "neg" : "";
+    switch (e.kind) {
+      case "delta": {
+        const net = e.presses.reduce((a, b) => a + b, 0);
+        const presses = e.presses.length > 1 ? `<span class="log-presses">${e.presses.map(signed).join(" · ")}</span>` : "";
+        return row(tc, `<span class="tag ${net > 0 ? "plus" : net < 0 ? "minus" : "zero"}">${signed(net)}</span>${presses}`, signed(e.value), valCls);
+      }
+      case "turn":
+      case "load": return row(tc, `<span class="tag ${e.kind}">${e.label}</span>`, signed(e.value), valCls);
+      case "start": return row(tc, `<span class="tag start">${e.label}</span>`, "시작");
+      case "reset": return row("", `<span class="tag reset">초기화</span>`, "0");
+      case "tamer": return row(tc, `<span class="tag tamer">${e.label}</span>`, "—");
     }
     return "";
   }
@@ -1863,13 +1857,9 @@
 
   function resetAll() {
     archiveCurrent();
-    state.memory = 0;
-    state.firstPlayer = null;
-    state.tamer1 = false;
-    state.tamer2 = false;
+    clearGame();
     refreshTamerButtons();
-    state.flipped = false; applyFlip();
-    state.logView = "current";
+    applyFlip();
     render();
     updateUndoButton();
     renderLog();
@@ -1939,7 +1929,12 @@
   });
 
   // ---------- Hold helper ----------
+  // Fires onFire after the button is held for ms; by default the button's .hold-fill shows the progress.
   function attachHold(btn, ms, onFire, onProgress) {
+    if (!onProgress) {
+      const fill = btn.querySelector(".hold-fill");
+      if (fill) onProgress = (pct) => { fill.style.transform = `scaleX(${pct})`; };
+    }
     let raf = null, start = 0;
     function tick() {
       const pct = Math.min(1, (Date.now() - start) / ms);
@@ -2014,10 +2009,7 @@
   memBtn.addEventListener("pointercancel", memDragEnd);
   memBtn.addEventListener("contextmenu", (e) => e.preventDefault());
 
-  document.querySelectorAll('.util-btn[data-action="reset"]').forEach((btn) => {
-    const fill = btn.querySelector(".hold-fill");
-    attachHold(btn, RESET_HOLD_MS, resetAll, (pct) => { fill.style.transform = `scaleX(${pct})`; });
-  });
+  document.querySelectorAll('.util-btn[data-action="reset"]').forEach((btn) => attachHold(btn, RESET_HOLD_MS, resetAll));
 
   // LOG / HELP opened from P2's band turn 180° to face P2 (not in no-rotate mode, where P2's band is upright too).
   function faceOpener(overlay, btn) {
@@ -2049,18 +2041,12 @@
   helpOverlay.addEventListener("click", (e) => { if (e.target === helpOverlay) helpOverlay.classList.remove("open"); });
 
   // ---------- ALL DELETE (log) ----------
-  const logDeleteBtn = $("logDeleteAll");
-  const logDeleteFill = logDeleteBtn.querySelector(".hold-fill");
   function deleteAllLogs() {
     state.log = [];
     state.logArchive = [];
     state.logName = null;
-    state.logView = "current";
-    state.memory = 0;
-    state.firstPlayer = null;
-    state.tamer1 = false;
-    state.tamer2 = false;
-    state.flipped = false; applyFlip();
+    clearGame();
+    applyFlip();
     refreshTamerButtons();
     render(false);
     updateUndoButton();
@@ -2071,7 +2057,7 @@
     vibrate(15);
     openTurnPicker();
   }
-  attachHold(logDeleteBtn, DELETE_HOLD_MS, deleteAllLogs, (pct) => { logDeleteFill.style.transform = `scaleX(${pct})`; });
+  attachHold($("logDeleteAll"), DELETE_HOLD_MS, deleteAllLogs);
 
   // ---------- Text file export (logs, record) ----------
   // APK: MainActivity's DigiNative.saveText opens Android's "save as" screen (no storage permission);
@@ -2104,7 +2090,7 @@
 
   // One log row as text, same content as entryHtml.
   function entryText(e) {
-    const sv = (v) => (v > 0 ? "+" : "") + v;
+    const sv = signed;
     const tc = turnClass(e);
     const who = tc === "turn-p1" ? "P1" : tc === "turn-p2" ? "P2" : "  ";
     const head = `${fmtTime(e.time)}  ${who}  `;
@@ -2260,7 +2246,6 @@
   const MYDECKS_MAX = 5;
   let records = [];
   let myDecks = [];
-  const recOverlay = $("recOverlay");
   const recDate = $("recDate");
   const recDeck = $("recDeck");
   const recOpp = $("recOpp");
@@ -2314,6 +2299,9 @@
     return [...m];
   }
   const deckName = (d) => (d ? escHtml(d) : "—");
+  const vsHtml = (r) => `${deckName(r.deck)}<i>vs</i>${deckName(r.opp)}`;
+  const resHtml = (r) => `<span class="r-res ${r.result}">${t("rec.short." + r.result)}</span>`;
+  const byGames = (a, b) => b[1].length - a[1].length; // groupBy entries, most records first
   let recView = "list";          // list | date | deck
   const recOpen = new Set();     // summary groups opened in the current view
   let recDelArmed = null, recDelTimer = 0;
@@ -2329,22 +2317,19 @@
       const c = countRes(list);
       recList.innerHTML = `<div class="rec-total"><span class="t-label">${t("rec.total")}</span><span class="t-rate">${c.n ? `${c.rate}<small>%</small>` : "—"}</span><span class="t-wdl">${wdl(c)}</span><div class="rec-bar">${resBar(c)}</div></div>` + list.map((r) => {
         const armed = recDelArmed === r.id;
-        const decks = `${deckName(r.deck)}<i>vs</i>${deckName(r.opp)}`;
-        return `<div class="rec-row"><span class="r-date">${escHtml(r.date)}</span><span class="r-deck">${decks}</span><span class="r-res ${r.result}">${t("rec.short." + r.result)}</span><button class="r-del${armed ? " armed" : ""}" data-id="${r.id}" aria-label="${t("rec.delAria")}">${armed ? t("rec.del") : "✕"}</button></div>`;
+        return `<div class="rec-row"><span class="r-date">${escHtml(r.date)}</span><span class="r-deck">${vsHtml(r)}</span>${resHtml(r)}<button class="r-del${armed ? " armed" : ""}" data-id="${r.id}" aria-label="${t("rec.delAria")}">${armed ? t("rec.del") : "✕"}</button></div>`;
       }).join("");
     } else if (recView === "date") {
       // newest day first; open a day to see its matches as rounds, the first one entered on top (1R, 2R, ...)
       recList.innerHTML = groupBy(list, (r) => r.date).map(([date, rs]) =>
         sumGroup(date, escHtml(date), rs, rs.slice().reverse().map((r, i) =>
-          `<div class="rec-subrow round"><span class="s-round">${i + 1}R</span><span class="s-name">${deckName(r.deck)}<i>vs</i>${deckName(r.opp)}</span><span class="r-res ${r.result}">${t("rec.short." + r.result)}</span></div>`).join(""))).join("");
+          `<div class="rec-subrow round"><span class="s-round">${i + 1}R</span><span class="s-name">${vsHtml(r)}</span>${resHtml(r)}</div>`).join(""))).join("");
     } else {
       // most played deck first; open a deck to see it against each opponent deck, best win rate first
-      const groups = groupBy(list, (r) => r.deck).sort((a, b) => b[1].length - a[1].length);
-      recList.innerHTML = groups.map(([deck, rs]) =>
+      recList.innerHTML = groupBy(list, (r) => r.deck).sort(byGames).map(([deck, rs]) =>
         sumGroup("d:" + deck, deck ? escHtml(deck) : escHtml(t("rec.noDeck")), rs,
-          groupBy(rs, (r) => r.opp).map(([opp, os]) => [opp, countRes(os)]).sort((a, b) => (b[1].n > 0) - (a[1].n > 0) || b[1].rate - a[1].rate || b[1].n - a[1].n).map(([opp, c]) => {
-            return `<div class="rec-subrow"><span class="s-name"><i>vs</i>${deckName(opp)}</span><span class="s-wdl">${wdl(c)}</span><span class="s-rate">${pct(c)}</span></div>`;
-          }).join(""))).join("");
+          groupBy(rs, (r) => r.opp).map(([opp, os]) => [opp, countRes(os)]).sort((a, b) => (b[1].n > 0) - (a[1].n > 0) || b[1].rate - a[1].rate || b[1].n - a[1].n).map(([opp, c]) =>
+            `<div class="rec-subrow"><span class="s-name"><i>vs</i>${deckName(opp)}</span><span class="s-wdl">${wdl(c)}</span><span class="s-rate">${pct(c)}</span></div>`).join(""))).join("");
     }
   }
   // win / loss share bar
@@ -2405,7 +2390,6 @@
   });
   recDeck.addEventListener("change", () => rememberDeck(recDeck.value)); // typed a new name: keep it in the recent list
   [recDeck, recOpp].forEach((el) => el.addEventListener("keydown", (e) => { if (e.key === "Enter") el.blur(); }));
-  // ✕ arms the row (Delete?), a second tap within 2.5 s deletes it.
   recTabs.addEventListener("click", (e) => {
     const b = e.target.closest("button[data-view]");
     if (!b || b.dataset.view === recView) return;
@@ -2425,6 +2409,7 @@
       s.parentElement.querySelector(".rec-sub").hidden = !open;
       return;
     }
+    // ✕ arms the row (Delete?), a second tap within 2.5 s deletes it.
     const b = e.target.closest(".r-del");
     if (!b) return;
     const id = Number(b.dataset.id);
@@ -2445,7 +2430,7 @@
     const now = new Date();
     const out = [`${APP.name} ${APP.version} · ${t("rec.txtHead")} ${fmtDate(now)} ${fmtTime(now)}`, `${t("rec.all")} ${tally(records)}`, "", t("rec.byDeck")];
     const list = sortedRecords();
-    groupBy(list, (r) => r.deck).sort((a, b) => b[1].length - a[1].length).forEach(([d, rs]) => out.push(`  ${d || t("rec.noDeck")}: ${tally(rs)}`));
+    groupBy(list, (r) => r.deck).sort(byGames).forEach(([d, rs]) => out.push(`  ${d || t("rec.noDeck")}: ${tally(rs)}`));
     out.push("", t("rec.byDate"));
     groupBy(list, (r) => r.date).forEach(([date, rs]) => out.push(`  ${date}: ${tally(rs)}`));
     out.push("", "=".repeat(40));
@@ -2457,9 +2442,7 @@
     saveTextFile(`digimemory-record-${stamp()}.txt`, recordsToText());
   });
   // ALL DELETE inside RECORD: hold 1 s; deletes every match (recent deck names are kept)
-  const recDeleteBtn = $("recDeleteAll");
-  const recDeleteFill = recDeleteBtn.querySelector(".hold-fill");
-  attachHold(recDeleteBtn, DELETE_HOLD_MS, () => {
+  attachHold($("recDeleteAll"), DELETE_HOLD_MS, () => {
     if (!records.length) { showToast(t("rec.noDelete")); return; }
     records = [];
     recOpen.clear();
@@ -2468,11 +2451,9 @@
     renderRecords();
     showToast(t("rec.deletedAll"));
     vibrate(15);
-  }, (pct) => { recDeleteFill.style.transform = `scaleX(${pct})`; });
+  });
   // NEW GAME inside RECORD: hold like the band's NEW GAME, then back to the first-turn screen
-  const recNewGame = $("recNewGame");
-  const recNewGameFill = recNewGame.querySelector(".hold-fill");
-  attachHold(recNewGame, RESET_HOLD_MS, () => { closeRecord(); resetAll(); }, (pct) => { recNewGameFill.style.transform = `scaleX(${pct})`; });
+  attachHold($("recNewGame"), RESET_HOLD_MS, () => { closeRecord(); resetAll(); });
   $("recClose").addEventListener("click", closeRecord);
   recOverlay.addEventListener("click", (e) => {
     if (e.target === recOverlay) { closeRecord(); return; }
@@ -2590,8 +2571,7 @@
       helpTabBtns.forEach(t => t.classList.remove("active"));
       helpPanes.forEach(p => p.classList.remove("active"));
       tab.classList.add("active");
-      const pane = document.querySelector(`.help-pane[data-help="${tab.dataset.help}"]`);
-      if (pane) pane.classList.add("active");
+      helpPanes.forEach((p) => { if (p.dataset.help === tab.dataset.help) p.classList.add("active"); });
     });
   });
 
@@ -2637,12 +2617,7 @@
   if (restored && state.firstPlayer != null) {
     // Archive previous game, then start fresh (hold its log tab to continue it)
     archiveCurrent();
-    state.memory = 0;
-    state.firstPlayer = null;
-    state.tamer1 = false;
-    state.tamer2 = false;
-    state.flipped = false;
-    state.logView = "current";
+    clearGame();
     saveState();
   }
   refreshTamerButtons();
